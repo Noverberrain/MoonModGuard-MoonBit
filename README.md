@@ -2,7 +2,7 @@
 
 MoonModGuard is a MoonBit project manifest and supply-chain policy auditor.
 
-- GitHub repository: <https://github.com/Noverberrain/MoonModGuard-MoonBit->
+- GitHub repository: <https://github.com/Noverberrain/MoonModGuard-MoonBit>
 - GitLink mirror: <https://gitlink.org.cn/Wyc060514/moonmodguard>
 - Core author: `wyc060514`
 - Competition note: the GitHub repository is the primary open-source release
