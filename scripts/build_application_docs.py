@@ -17,33 +17,43 @@ OUT_DIR = ROOT / "docs" / "competition"
 PDF_PATH = OUT_DIR / "MoonModGuard项目申报书.pdf"
 DOCX_PATH = OUT_DIR / "MoonModGuard项目申报书.docx"
 
-TITLE = "MoonModGuard 项目申报书"
+TITLE = "MoonModGuard 技术白皮书式项目申报书"
 PROJECT_NAME = "MoonModGuard：MoonBit 项目清单与供应链策略审计器"
+GITHUB_URL = "https://github.com/Noverberrain/MoonModGuard-MoonBit-"
+GITLINK_URL = "https://gitlink.org.cn/Wyc060514/moonmodguard"
 
 SECTIONS = [
     (
-        "一、项目简介",
-        "MoonModGuard 是一个面向 MoonBit 生态的项目清单与供应链策略审计工具。项目解析 moon.mod、moon.pkg 等清单文本，提取模块元数据、包级依赖、导入别名和发布信息，构建项目快照，并根据策略输出元数据完整性、许可证合规性、依赖重复和未知依赖等诊断结果。",
+        "一、项目定位",
+        "MoonModGuard 是面向 MoonBit 生态的项目清单与供应链策略审计器。项目围绕 moon.mod、moon.pkg 等工程清单文件构建轻量审计内核，提取模块元数据、包级依赖、导入别名和发布信息，并通过策略规则生成可复查的审计报告。项目以 GitHub 仓库作为官方开源发布地址，同时保留 GitLink 仓库作为赛事平台镜像。",
     ),
     (
-        "二、方向与场景",
-        "随着 MoonBit 包生态持续增长，项目是否可发布、可复现、可维护，越来越依赖清单元数据和依赖声明质量。MoonModGuard 将这些工程要求转化为可测试的审计规则，可用于包发布前检查、竞赛仓库验收、课程项目规范检查，以及后续 CI 和包仓库审计。",
+        "二、问题背景",
+        "MoonBit 包生态正在增长。一个项目能否稳定发布和复现，不只取决于源码是否能编译，还取决于清单元数据是否完整、许可证是否符合策略、依赖来源是否清晰、包级导入是否可审计。当前很多检查依赖人工阅读，难以形成统一、可测试、可自动化的评审流程。MoonModGuard 将这些工程质量要求转化为可执行规则，为包发布前检查、竞赛仓库验收、课程项目规范检查和后续 CI 集成提供基础组件。",
     ),
     (
-        "三、核心功能",
-        "项目实现 moon.mod 标量字段解析、数组字段解析、moon.mod 与 moon.pkg import 依赖解析、项目模型构建、默认策略评估和 Markdown 报告输出。默认策略检查缺失 README、缺失 repository、缺失 license、非 allowlist 许可证、未知依赖前缀和重复依赖。",
+        "三、技术架构",
+        "系统由清单解析层、项目建模层、策略评估层和报告渲染层组成。清单解析层接收 moon.mod 与 moon.pkg 文本，解析标量字段、数组字段和 import 块；项目建模层将 ModuleManifest 与 PackageManifest 合并为 ProjectModel；策略评估层基于 Policy 检查必填元数据、许可证 allowlist、可信依赖前缀和重复依赖；报告渲染层将 AuditReport 输出为稳定 Markdown，供 CLI、CI 和文档系统复用。",
     ),
     (
-        "四、原创性说明",
-        "本项目为原创项目，不移植已有开源项目。项目聚焦 MoonBit 自身工程元数据和包供应链策略审计，不与常见格式解析、通用数据结构、内容寻址、解释执行或差异算法方向重合。首版不引入外部依赖，优先形成可复用的审计内核。",
+        "四、核心功能",
+        "项目实现 parse_mod、parse_pkg、project_from、evaluate_policy、scan_project、render_markdown 与 format_error 等核心 API。默认策略检查缺失 README、缺失 repository、缺失 license、非 allowlist 许可证、未知外部依赖和重复依赖。CLI 示例使用内置项目快照展示审计摘要，便于评审者快速验证项目能力。",
     ),
     (
-        "五、技术路线",
-        "系统采用轻量扫描器解析清单文本，生成 ModuleManifest、PackageManifest 和 ProjectModel。策略评估器基于 Policy 输出 AuditReport，报告渲染器将审计结果转换为稳定 Markdown。CLI 使用内置项目样例展示审计摘要，测试覆盖解析、策略诊断和报告渲染。",
+        "五、创新性说明",
+        "本项目选择 MoonBit 项目元数据与供应链策略审计这一较冷门但有工程价值的方向，避免与常见格式解析、通用数据结构、解释器、内容寻址或运行日志分析方向重合。项目不追求复杂语法覆盖，而是把 MoonBit 项目的发布准备度、元数据完整性和依赖策略检查抽象为可测试的基础软件能力，具有后续接入 CI、包仓库和教学评测系统的扩展空间。",
     ),
     (
-        "六、预期成果",
-        "项目交付一个独立 MoonBit 审计基础库、可运行 CLI 示例、覆盖核心场景的测试集、README、竞赛申报材料和可复现仓库。后续可扩展真实文件扫描、工作区遍历、依赖图可视化、CI 失败阈值和包仓库审计能力。",
+        "六、测试与验证",
+        "当前验证覆盖 moon.mod 标量字段解析、keywords 数组字段解析、moon.mod import 解析、moon.pkg import 解析、缺失元数据诊断、非 allowlist 许可证诊断、未知依赖前缀诊断、重复依赖诊断和 Markdown 报告稳定输出。项目验证命令包括 moon info、moon fmt --check、moon test 和 moon run cmd/main。",
+    ),
+    (
+        "七、开源交付",
+        "项目交付独立 MoonBit 审计基础库、可运行 CLI 示例、测试集、README、Apache-2.0 许可证、GitHub Actions 配置、竞赛申报材料和可编辑 DOCX/PDF。GitHub 主仓库用于满足赛事章程第五节阶段一对有效 GitHub 仓库链接的要求；GitLink 镜像仓库用于赛事平台提交与同步验收。",
+    ),
+    (
+        "八、后续计划",
+        "后续版本可扩展真实文件系统扫描、工作区多包遍历、依赖图可视化、CI 失败阈值、包仓库审计和策略配置文件。首版重点交付可复现、可测试、可演示的审计内核，避免在文件系统、平台集成和网络查询上引入不必要复杂度。",
     ),
 ]
 
@@ -67,10 +77,10 @@ def build_pdf() -> None:
         "TitleCN",
         parent=styles["Title"],
         fontName=font,
-        fontSize=22,
-        leading=30,
+        fontSize=21,
+        leading=29,
         alignment=TA_CENTER,
-        spaceAfter=20,
+        spaceAfter=18,
     )
     body = ParagraphStyle(
         "BodyCN",
@@ -95,8 +105,8 @@ def build_pdf() -> None:
         "MetaCN",
         parent=styles["BodyText"],
         fontName=font,
-        fontSize=10.5,
-        leading=16,
+        fontSize=10,
+        leading=15,
     )
     doc = SimpleDocTemplate(
         str(PDF_PATH),
@@ -110,11 +120,12 @@ def build_pdf() -> None:
     table = Table(
         [
             [Paragraph("项目名称", meta), Paragraph(PROJECT_NAME, meta)],
-            [Paragraph("参赛方向", meta), Paragraph("MoonBit 国产基础软件开源生态项目", meta)],
+            [Paragraph("GitHub 主仓库", meta), Paragraph(GITHUB_URL, meta)],
+            [Paragraph("GitLink 镜像仓库", meta), Paragraph(GITLINK_URL, meta)],
             [Paragraph("开源许可证", meta), Paragraph("Apache-2.0", meta)],
-            [Paragraph("仓库链接", meta), Paragraph("https://gitlink.org.cn/python123/moonmodguard", meta)],
+            [Paragraph("参赛方向", meta), Paragraph("MoonBit 国产基础软件开源生态项目", meta)],
         ],
-        colWidths=[3.2 * cm, 12 * cm],
+        colWidths=[3.4 * cm, 11.8 * cm],
     )
     table.setStyle(
         TableStyle(
@@ -130,7 +141,7 @@ def build_pdf() -> None:
             ]
         )
     )
-    story = [Paragraph(TITLE, title), table, Spacer(1, 0.4 * cm)]
+    story = [Paragraph(TITLE, title), table, Spacer(1, 0.35 * cm)]
     for section_title, text in SECTIONS:
         story.append(Paragraph(section_title, heading))
         story.append(Paragraph(text, body))
@@ -143,13 +154,14 @@ def build_docx() -> None:
     doc.styles["Normal"].font.size = Pt(10.5)
     heading = doc.add_heading(TITLE, level=0)
     heading.alignment = 1
-    table = doc.add_table(rows=4, cols=2)
+    table = doc.add_table(rows=5, cols=2)
     table.style = "Table Grid"
     rows = [
         ("项目名称", PROJECT_NAME),
-        ("参赛方向", "MoonBit 国产基础软件开源生态项目"),
+        ("GitHub 主仓库", GITHUB_URL),
+        ("GitLink 镜像仓库", GITLINK_URL),
         ("开源许可证", "Apache-2.0"),
-        ("仓库链接", "https://gitlink.org.cn/python123/moonmodguard"),
+        ("参赛方向", "MoonBit 国产基础软件开源生态项目"),
     ]
     for row, (key, value) in zip(table.rows, rows):
         row.cells[0].text = key

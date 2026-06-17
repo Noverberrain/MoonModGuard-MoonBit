@@ -1,9 +1,17 @@
-# GitLink 报名表第 5、6、7 项填写说明
+# 报名表第 5、6、7 项填写说明
 
-## 第 5 项：GitLink 仓库链接
+## 第 5 项：仓库链接
+
+主仓库填写 GitHub 链接：
 
 ```text
-https://gitlink.org.cn/python123/moonmodguard
+https://github.com/Noverberrain/MoonModGuard-MoonBit-
+```
+
+补充仓库链接：
+
+```text
+https://gitlink.org.cn/Wyc060514/moonmodguard
 ```
 
 ## 第 6 项：项目名称

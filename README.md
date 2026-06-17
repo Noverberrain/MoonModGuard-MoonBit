@@ -1,12 +1,22 @@
-# python123/moonmodguard
+# MoonModGuard
 
 MoonModGuard is a MoonBit project manifest and supply-chain policy auditor.
 
-It parses `moon.mod` and `moon.pkg` text, extracts module metadata and package
-imports, builds an in-memory project model, evaluates policy risks, and renders
-a small Markdown audit report. The first version is deliberately dependency-free
-and works on explicit strings or snapshots so it can stay portable inside the
-MoonBit ecosystem.
+- GitHub repository: <https://github.com/Noverberrain/MoonModGuard-MoonBit->
+- GitLink mirror: <https://gitlink.org.cn/Wyc060514/moonmodguard>
+- Competition note: the GitHub repository is the primary open-source release
+  link for the 2026 MoonBit domestic open-source ecosystem contest. The GitLink
+  repository is kept as the contest platform mirror.
+
+## What It Does
+
+MoonModGuard parses `moon.mod` and `moon.pkg` text, extracts module metadata and
+package imports, builds an in-memory project model, evaluates supply-chain
+policy risks, and renders a deterministic Markdown audit report.
+
+The first version is deliberately dependency-free and accepts explicit strings
+or snapshots instead of scanning the filesystem. This keeps the core portable
+and testable while leaving room for later CI and workspace integrations.
 
 ## Why This Exists
 
@@ -15,11 +25,12 @@ dependencies, metadata, and publication readiness. A small auditor can help
 maintainers check whether a package is ready to publish, whether metadata is
 complete, and whether dependency declarations match a local policy.
 
-MoonModGuard is aimed at software analysis and engineering quality workflows:
+MoonModGuard targets software analysis and engineering quality workflows:
 
 - package release readiness checks
-- classroom or contest repository review
-- dependency policy demonstrations
+- contest repository review
+- classroom or team repository governance
+- dependency policy demonstration
 - future CI or package registry audit integration
 
 ## Features
@@ -84,18 +95,18 @@ Public API:
 
 ## Design Notes
 
-The parser is intentionally small. It handles the common MoonBit manifest shape
-used by package metadata and import declarations, not the full MoonBit grammar.
-This is enough for release-readiness checks and keeps the first version easy to
-test.
+The parser handles the common MoonBit manifest shape used by package metadata
+and import declarations. It is not a full MoonBit grammar parser. That boundary
+is intentional: the first release focuses on release readiness and policy audit
+checks that can be validated with stable tests.
 
-Policy evaluation is also explicit. The default policy accepts `Apache-2.0`,
-`MIT`, and `MulanPSL-2.0`, and treats `moonbitlang/` and `python123/` as trusted
-dependency prefixes. Callers can provide a different `Policy` value.
+The default policy accepts `Apache-2.0`, `MIT`, and `MulanPSL-2.0`, and treats
+`moonbitlang/` and `python123/` as trusted dependency prefixes. Callers can pass
+a custom `Policy` value for stricter project rules.
 
 ## Competition Materials
 
-- Proposal: `docs/competition/proposal.md`
+- Proposal source: `docs/competition/proposal.md`
 - Submission guide: `docs/competition/submission-guide.md`
 - Acceptance checklist: `docs/competition/acceptance-checklist.md`
 - Application PDF: `docs/competition/MoonModGuard项目申报书.pdf`
