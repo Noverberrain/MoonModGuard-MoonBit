@@ -1,0 +1,27 @@
+///|
+fn main {
+  let mod_text = "name = \"python123/moonmodguard\"\n" +
+    "version = \"0.1.0\"\n" +
+    "readme = \"README.md\"\n" +
+    "repository = \"https://gitlink.org.cn/python123/moonmodguard\"\n" +
+    "license = \"Apache-2.0\"\n" +
+    "keywords = [ \"audit\", \"moonbit\" ]\n" +
+    "import { \"moonbitlang/x\" @x }"
+  let pkg_text = "import { \"python123/moonmodguard\" @guard }"
+  match (@guard.parse_mod(mod_text), @guard.parse_pkg(pkg_text)) {
+    (Ok(module_manifest), Ok(package_manifest)) => {
+      let report = @guard.scan_project(@guard.ProjectSnapshot::{
+        module_manifest,
+        packages: [package_manifest],
+      })
+      println("MoonModGuard demo")
+      println("project=" + report.project.name)
+      println("dependencies=\{report.dependency_count}")
+      println("risks=\{report.risk_count}")
+      println("--- markdown ---")
+      println(@guard.render_markdown(report))
+    }
+    (Err(err), _) => println("module parse error: " + @guard.format_error(err))
+    (_, Err(err)) => println("package parse error: " + @guard.format_error(err))
+  }
+}

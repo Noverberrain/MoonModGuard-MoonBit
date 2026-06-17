@@ -1,0 +1,7 @@
+import {
+  "python123/moonmodguard" @guard,
+}
+
+options(
+  "is-main": true,
+)

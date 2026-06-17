@@ -1,0 +1,90 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "python123/moonmodguard"
+
+// Values
+pub fn default_policy() -> Policy
+
+pub fn evaluate_policy(ProjectModel, Policy) -> AuditReport
+
+pub fn format_error(GuardError) -> String
+
+pub fn parse_mod(String) -> Result[ModuleManifest, GuardError]
+
+pub fn parse_pkg(String) -> Result[PackageManifest, GuardError]
+
+pub fn project_from(ModuleManifest, Array[PackageManifest]) -> ProjectModel
+
+pub fn render_markdown(AuditReport) -> String
+
+pub fn scan_project(ProjectSnapshot) -> AuditReport
+
+// Errors
+
+// Types and methods
+pub(all) struct AuditReport {
+  project : ProjectModel
+  diagnostics : Array[Diagnostic]
+  risk_count : Int
+  dependency_count : Int
+} derive(Eq)
+
+pub(all) struct Dependency {
+  source : String
+  as_name : String?
+} derive(Eq)
+
+pub(all) struct Diagnostic {
+  code : String
+  message : String
+  severity : String
+} derive(Eq)
+
+pub(all) enum GuardError {
+  UnterminatedString(Position)
+} derive(Eq)
+
+pub(all) struct ModuleManifest {
+  name : String
+  version : String
+  readme : String
+  repository : String
+  license : String
+  keywords : Array[String]
+  description : String
+  imports : Array[Dependency]
+} derive(Eq)
+
+pub(all) struct PackageManifest {
+  imports : Array[Dependency]
+} derive(Eq)
+
+pub(all) struct Policy {
+  allowed_licenses : Array[String]
+  trusted_prefixes : Array[String]
+  require_readme : Bool
+  require_repository : Bool
+  require_license : Bool
+} derive(Eq)
+
+pub(all) struct Position {
+  line : Int
+  column : Int
+} derive(Eq)
+
+pub(all) struct ProjectModel {
+  name : String
+  license : String
+  readme : String
+  repository : String
+  dependencies : Array[Dependency]
+} derive(Eq)
+
+pub(all) struct ProjectSnapshot {
+  module_manifest : ModuleManifest
+  packages : Array[PackageManifest]
+} derive(Eq)
+
+// Type aliases
+
+// Traits
+
