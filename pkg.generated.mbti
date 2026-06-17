@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "python123/moonmodguard"
+package "wyc060514/moonmodguard"
 
 // Values
 pub fn default_policy() -> Policy

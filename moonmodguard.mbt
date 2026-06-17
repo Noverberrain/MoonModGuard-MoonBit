@@ -152,7 +152,7 @@ pub fn project_from(
 pub fn default_policy() -> Policy {
   {
     allowed_licenses: ["Apache-2.0", "MIT", "MulanPSL-2.0"],
-    trusted_prefixes: ["moonbitlang/", "python123/"],
+    trusted_prefixes: ["moonbitlang/", "wyc060514/"],
     require_readme: true,
     require_repository: true,
     require_license: true,

@@ -27,9 +27,9 @@ fn dep_as_name(dep : @moonmodguard.Dependency) -> String {
 ///|
 test "parse moon mod scalar and array fields" {
   let manifest = mod_ok(
-    "name = \"python123/tool\"\nversion = \"0.1.0\"\nreadme = \"README.md\"\nrepository = \"https://example.test/repo\"\nlicense = \"Apache-2.0\"\nkeywords = [ \"audit\", \"moonbit\" ]\ndescription = \"demo\"",
+    "name = \"wyc060514/tool\"\nversion = \"0.1.0\"\nreadme = \"README.md\"\nrepository = \"https://example.test/repo\"\nlicense = \"Apache-2.0\"\nkeywords = [ \"audit\", \"moonbit\" ]\ndescription = \"demo\"",
   )
-  assert_eq(manifest.name, "python123/tool")
+  assert_eq(manifest.name, "wyc060514/tool")
   assert_eq(manifest.version, "0.1.0")
   assert_eq(manifest.license, "Apache-2.0")
   assert_eq(manifest.keywords.length(), 2)
@@ -40,7 +40,7 @@ test "parse moon mod scalar and array fields" {
 ///|
 test "parse module imports with aliases" {
   let manifest = mod_ok(
-    "name = \"python123/tool\"\nlicense = \"Apache-2.0\"\nimport {\n  \"moonbitlang/x\" @x,\n  \"acme/dep\"\n}",
+    "name = \"wyc060514/tool\"\nlicense = \"Apache-2.0\"\nimport {\n  \"moonbitlang/x\" @x,\n  \"acme/dep\"\n}",
   )
   assert_eq(manifest.imports.length(), 2)
   assert_eq(manifest.imports[0].source, "moonbitlang/x")
@@ -51,10 +51,10 @@ test "parse module imports with aliases" {
 ///|
 test "parse package imports with aliases" {
   let manifest = pkg_ok(
-    "import {\n  \"python123/core\" @core,\n  \"moonbitlang/x/json\" @json,\n}\noptions(\"is-main\": true)",
+    "import {\n  \"wyc060514/core\" @core,\n  \"moonbitlang/x/json\" @json,\n}\noptions(\"is-main\": true)",
   )
   assert_eq(manifest.imports.length(), 2)
-  assert_eq(manifest.imports[0].source, "python123/core")
+  assert_eq(manifest.imports[0].source, "wyc060514/core")
   assert_eq(dep_as_name(manifest.imports[0]), "core")
   assert_eq(dep_as_name(manifest.imports[1]), "json")
 }
@@ -62,7 +62,7 @@ test "parse package imports with aliases" {
 ///|
 test "policy reports missing metadata and license violations" {
   let project = @moonmodguard.project_from(
-    mod_ok("name = \"python123/tool\"\nlicense = \"GPL-3.0\""),
+    mod_ok("name = \"wyc060514/tool\"\nlicense = \"GPL-3.0\""),
     [],
   )
   let policy = @moonmodguard.default_policy()
@@ -77,7 +77,7 @@ test "policy reports missing metadata and license violations" {
 ///|
 test "policy reports duplicate and unknown dependencies" {
   let module_manifest = mod_ok(
-    "name = \"python123/tool\"\nreadme = \"README.md\"\nrepository = \"https://example.test/repo\"\nlicense = \"Apache-2.0\"\nimport {\n  \"unknown/dep\" @a,\n  \"unknown/dep\" @b\n}",
+    "name = \"wyc060514/tool\"\nreadme = \"README.md\"\nrepository = \"https://example.test/repo\"\nlicense = \"Apache-2.0\"\nimport {\n  \"unknown/dep\" @a,\n  \"unknown/dep\" @b\n}",
   )
   let project = @moonmodguard.project_from(module_manifest, [])
   let report = @moonmodguard.evaluate_policy(
@@ -92,14 +92,14 @@ test "policy reports duplicate and unknown dependencies" {
 ///|
 test "scan project combines module and package imports" {
   let module_manifest = mod_ok(
-    "name = \"python123/tool\"\nreadme = \"README.md\"\nrepository = \"https://example.test/repo\"\nlicense = \"Apache-2.0\"\nimport { \"moonbitlang/x\" @x }",
+    "name = \"wyc060514/tool\"\nreadme = \"README.md\"\nrepository = \"https://example.test/repo\"\nlicense = \"Apache-2.0\"\nimport { \"moonbitlang/x\" @x }",
   )
-  let package_manifest = pkg_ok("import { \"python123/core\" @core }")
+  let package_manifest = pkg_ok("import { \"wyc060514/core\" @core }")
   let report = @moonmodguard.scan_project(@moonmodguard.ProjectSnapshot::{
     module_manifest,
     packages: [package_manifest],
   })
-  assert_eq(report.project.name, "python123/tool")
+  assert_eq(report.project.name, "wyc060514/tool")
   assert_eq(report.dependency_count, 2)
   assert_eq(report.risk_count, 0)
 }
@@ -107,7 +107,7 @@ test "scan project combines module and package imports" {
 ///|
 test "render markdown report" {
   let project = @moonmodguard.project_from(
-    mod_ok("name = \"python123/tool\"\nlicense = \"GPL-3.0\""),
+    mod_ok("name = \"wyc060514/tool\"\nlicense = \"GPL-3.0\""),
     [],
   )
   let report = @moonmodguard.evaluate_policy(
@@ -116,6 +116,6 @@ test "render markdown report" {
   )
   let markdown = @moonmodguard.render_markdown(report)
   assert_true(markdown.contains("# MoonModGuard Audit Report"))
-  assert_true(markdown.contains("- Project: python123/tool"))
+  assert_true(markdown.contains("- Project: wyc060514/tool"))
   assert_true(markdown.contains("license-not-allowed"))
 }

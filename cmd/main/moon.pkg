@@ -1,5 +1,5 @@
 import {
-  "python123/moonmodguard" @guard,
+  "wyc060514/moonmodguard" @guard,
 }
 
 options(

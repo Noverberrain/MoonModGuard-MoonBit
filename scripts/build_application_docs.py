@@ -31,6 +31,7 @@ TITLE = "MoonModGuard 开源技术说明书"
 SUBTITLE = "MoonBit 项目清单与供应链策略审计器"
 GITHUB_URL = "https://github.com/Noverberrain/MoonModGuard-MoonBit-"
 GITLINK_URL = "https://gitlink.org.cn/Wyc060514/moonmodguard"
+CORE_AUTHOR = "wyc060514"
 
 HIGHLIGHTS = [
     ("定位", "面向 MoonBit 工程清单的发布前自检与策略审计工具。"),
@@ -185,6 +186,7 @@ def build_pdf() -> None:
     meta_rows = [
         ["GitHub 主仓库", GITHUB_URL],
         ["GitLink 镜像仓库", GITLINK_URL],
+        ["核心作者", CORE_AUTHOR],
         ["开源许可证", "Apache-2.0"],
         ["参赛方向", "MoonBit 国产基础软件开源生态项目"],
     ]
@@ -316,11 +318,12 @@ def build_docx() -> None:
     add_run(sub, SUBTITLE, 12, "4A6178")
     sub.paragraph_format.space_after = Pt(10)
 
-    meta_table = doc.add_table(rows=4, cols=2)
+    meta_table = doc.add_table(rows=5, cols=2)
     meta_table.style = "Table Grid"
     meta_rows = [
         ("GitHub 主仓库", GITHUB_URL),
         ("GitLink 镜像仓库", GITLINK_URL),
+        ("核心作者", CORE_AUTHOR),
         ("开源许可证", "Apache-2.0"),
         ("参赛方向", "MoonBit 国产基础软件开源生态项目"),
     ]

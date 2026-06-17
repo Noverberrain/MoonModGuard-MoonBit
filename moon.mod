@@ -1,4 +1,4 @@
-name = "python123/moonmodguard"
+name = "wyc060514/moonmodguard"
 
 version = "0.1.0"
 

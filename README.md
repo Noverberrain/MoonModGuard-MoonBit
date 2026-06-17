@@ -4,6 +4,7 @@ MoonModGuard is a MoonBit project manifest and supply-chain policy auditor.
 
 - GitHub repository: <https://github.com/Noverberrain/MoonModGuard-MoonBit->
 - GitLink mirror: <https://gitlink.org.cn/Wyc060514/moonmodguard>
+- Core author: `wyc060514`
 - Competition note: the GitHub repository is the primary open-source release
   link for the 2026 MoonBit domestic open-source ecosystem contest. The GitLink
   repository is kept as the contest platform mirror.
@@ -56,7 +57,7 @@ Example CLI output:
 
 ```text
 MoonModGuard demo
-project=python123/moonmodguard
+project=wyc060514/moonmodguard
 dependencies=2
 risks=0
 --- markdown ---
@@ -69,7 +70,7 @@ risks=0
 ///|
 test "audit a project" {
   let manifest = match @moonmodguard.parse_mod(
-    "name = \"python123/tool\"\nlicense = \"Apache-2.0\"\nreadme = \"README.md\"\nrepository = \"https://example.test/repo\"",
+    "name = \"wyc060514/tool\"\nlicense = \"Apache-2.0\"\nreadme = \"README.md\"\nrepository = \"https://example.test/repo\"",
   ) {
     Ok(value) => value
     Err(err) => fail(@moonmodguard.format_error(err))
@@ -101,7 +102,7 @@ is intentional: the first release focuses on release readiness and policy audit
 checks that can be validated with stable tests.
 
 The default policy accepts `Apache-2.0`, `MIT`, and `MulanPSL-2.0`, and treats
-`moonbitlang/` and `python123/` as trusted dependency prefixes. Callers can pass
+`moonbitlang/` and `wyc060514/` as trusted dependency prefixes. Callers can pass
 a custom `Policy` value for stricter project rules.
 
 ## Competition Materials
