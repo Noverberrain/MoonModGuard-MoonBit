@@ -62,7 +62,7 @@ test "parse package imports with aliases" {
 ///|
 test "policy reports missing metadata and license violations" {
   let project = @moonmodguard.project_from(
-    mod_ok("name = \"wyc060514/tool\"\nlicense = \"GPL-3.0\""),
+    mod_ok("name = \"wyc060514/tool\"\nlicense = \"GPL-3.0\"\ndescription = \"a useful tool for MoonBit\"\nkeywords = [\"audit\", \"moonbit\"]"),
     [],
   )
   let policy = @moonmodguard.default_policy()
@@ -77,7 +77,7 @@ test "policy reports missing metadata and license violations" {
 ///|
 test "policy reports duplicate and unknown dependencies" {
   let module_manifest = mod_ok(
-    "name = \"wyc060514/tool\"\nreadme = \"README.md\"\nrepository = \"https://example.test/repo\"\nlicense = \"Apache-2.0\"\nimport {\n  \"unknown/dep\" @a,\n  \"unknown/dep\" @b\n}",
+    "name = \"wyc060514/tool\"\nreadme = \"README.md\"\nrepository = \"https://example.test/repo\"\nlicense = \"Apache-2.0\"\ndescription = \"a useful tool for MoonBit project auditing\"\nkeywords = [\"audit\"]\nimport {\n  \"unknown/dep\" @a,\n  \"unknown/dep\" @b\n}",
   )
   let project = @moonmodguard.project_from(module_manifest, [])
   let report = @moonmodguard.evaluate_policy(
@@ -92,7 +92,7 @@ test "policy reports duplicate and unknown dependencies" {
 ///|
 test "scan project combines module and package imports" {
   let module_manifest = mod_ok(
-    "name = \"wyc060514/tool\"\nreadme = \"README.md\"\nrepository = \"https://example.test/repo\"\nlicense = \"Apache-2.0\"\nimport { \"moonbitlang/x\" @x }",
+    "name = \"wyc060514/tool\"\nreadme = \"README.md\"\nrepository = \"https://example.test/repo\"\nlicense = \"Apache-2.0\"\ndescription = \"a useful tool for MoonBit project auditing\"\nkeywords = [\"audit\", \"moonbit\"]\nimport { \"moonbitlang/x\" @x }",
   )
   let package_manifest = pkg_ok("import { \"wyc060514/core\" @core }")
   let report = @moonmodguard.scan_project(@moonmodguard.ProjectSnapshot::{
@@ -107,7 +107,7 @@ test "scan project combines module and package imports" {
 ///|
 test "render markdown report" {
   let project = @moonmodguard.project_from(
-    mod_ok("name = \"wyc060514/tool\"\nlicense = \"GPL-3.0\""),
+    mod_ok("name = \"wyc060514/tool\"\nlicense = \"GPL-3.0\"\ndescription = \"a useful tool for MoonBit\"\nkeywords = [\"audit\"]"),
     [],
   )
   let report = @moonmodguard.evaluate_policy(

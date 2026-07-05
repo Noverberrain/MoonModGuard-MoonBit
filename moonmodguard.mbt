@@ -39,6 +39,8 @@ pub(all) struct ProjectModel {
   license : String
   readme : String
   repository : String
+  description : String
+  keywords : Array[String]
   dependencies : Array[Dependency]
 } derive(Eq)
 
@@ -49,6 +51,10 @@ pub(all) struct Policy {
   require_readme : Bool
   require_repository : Bool
   require_license : Bool
+  require_description : Bool
+  min_description_length : Int
+  require_keywords : Bool
+  min_keywords : Int
 } derive(Eq)
 
 ///|
@@ -144,6 +150,8 @@ pub fn project_from(
     license: manifest.license,
     readme: manifest.readme,
     repository: manifest.repository,
+    description: manifest.description,
+    keywords: manifest.keywords,
     dependencies,
   }
 }
@@ -156,6 +164,40 @@ pub fn default_policy() -> Policy {
     require_readme: true,
     require_repository: true,
     require_license: true,
+    require_description: true,
+    min_description_length: 10,
+    require_keywords: true,
+    min_keywords: 1,
+  }
+}
+
+///|
+pub fn strict_policy() -> Policy {
+  {
+    allowed_licenses: ["Apache-2.0", "MIT"],
+    trusted_prefixes: ["moonbitlang/"],
+    require_readme: true,
+    require_repository: true,
+    require_license: true,
+    require_description: true,
+    min_description_length: 30,
+    require_keywords: true,
+    min_keywords: 3,
+  }
+}
+
+///|
+pub fn permissive_policy() -> Policy {
+  {
+    allowed_licenses: ["Apache-2.0", "MIT", "MulanPSL-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Unlicense"],
+    trusted_prefixes: ["moonbitlang/", "wyc060514/", "github.com/"],
+    require_readme: false,
+    require_repository: false,
+    require_license: false,
+    require_description: false,
+    min_description_length: 0,
+    require_keywords: false,
+    min_keywords: 0,
   }
 }
 
@@ -185,6 +227,22 @@ pub fn evaluate_policy(project : ProjectModel, policy : Policy) -> AuditReport {
       diagnostic(
         "license-not-allowed",
         "license \{project.license} is outside the allowed policy",
+      ),
+    )
+  }
+  if policy.require_description && project.description.length() < policy.min_description_length {
+    diagnostics.push(
+      diagnostic(
+        "description-too-short",
+        "description is too short (\{project.description.length()} chars, min \{policy.min_description_length})",
+      ),
+    )
+  }
+  if policy.require_keywords && project.keywords.length() < policy.min_keywords {
+    diagnostics.push(
+      diagnostic(
+        "missing-keywords",
+        "only \{project.keywords.length()} keywords, min \{policy.min_keywords} required",
       ),
     )
   }
@@ -233,6 +291,29 @@ pub fn render_markdown(report : AuditReport) -> String {
     }
   }
   out.to_string()
+}
+
+///|
+pub fn render_json(report : AuditReport) -> String {
+  let out = StringBuilder()
+  out.write_string("{\n")
+  out.write_string("  \"project\": \"" + report.project.name + "\",\n")
+  out.write_string("  \"license\": \"" + report.project.license + "\",\n")
+  out.write_string("  \"dependencies\": " + report.dependency_count.to_string() + ",\n")
+  out.write_string("  \"risks\": " + report.risk_count.to_string() + ",\n")
+  out.write_string("  \"diagnostics\": [\n")
+  render_json_diagnostics(out, report.diagnostics, 0)
+  out.write_string("  ]\n")
+  out.write_string("}\n")
+  out.to_string()
+}
+
+fn render_json_diagnostics(out : StringBuilder, diags : Array[Diagnostic], idx : Int) -> Unit {
+  if idx >= diags.length() { return }
+  let d = diags[idx]
+  if idx > 0 { let _ = out.write_string(",\n") }
+  let _ = out.write_string("    {\"code\": \"" + d.code + "\", \"message\": \"" + d.message + "\", \"severity\": \"" + d.severity + "\"}")
+  let _ = render_json_diagnostics(out, diags, idx + 1)
 }
 
 ///|
