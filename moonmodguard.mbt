@@ -189,7 +189,10 @@ pub fn strict_policy() -> Policy {
 ///|
 pub fn permissive_policy() -> Policy {
   {
-    allowed_licenses: ["Apache-2.0", "MIT", "MulanPSL-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Unlicense"],
+    allowed_licenses: [
+      "Apache-2.0", "MIT", "MulanPSL-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC",
+      "Unlicense",
+    ],
     trusted_prefixes: ["moonbitlang/", "wyc060514/", "github.com/"],
     require_readme: false,
     require_repository: false,
@@ -230,7 +233,8 @@ pub fn evaluate_policy(project : ProjectModel, policy : Policy) -> AuditReport {
       ),
     )
   }
-  if policy.require_description && project.description.length() < policy.min_description_length {
+  if policy.require_description &&
+    project.description.length() < policy.min_description_length {
     diagnostics.push(
       diagnostic(
         "description-too-short",
@@ -299,7 +303,9 @@ pub fn render_json(report : AuditReport) -> String {
   out.write_string("{\n")
   out.write_string("  \"project\": \"" + report.project.name + "\",\n")
   out.write_string("  \"license\": \"" + report.project.license + "\",\n")
-  out.write_string("  \"dependencies\": " + report.dependency_count.to_string() + ",\n")
+  out.write_string(
+    "  \"dependencies\": " + report.dependency_count.to_string() + ",\n",
+  )
   out.write_string("  \"risks\": " + report.risk_count.to_string() + ",\n")
   out.write_string("  \"diagnostics\": [\n")
   render_json_diagnostics(out, report.diagnostics, 0)
@@ -308,11 +314,28 @@ pub fn render_json(report : AuditReport) -> String {
   out.to_string()
 }
 
-fn render_json_diagnostics(out : StringBuilder, diags : Array[Diagnostic], idx : Int) -> Unit {
-  if idx >= diags.length() { return }
+///|
+fn render_json_diagnostics(
+  out : StringBuilder,
+  diags : Array[Diagnostic],
+  idx : Int,
+) -> Unit {
+  if idx >= diags.length() {
+    return
+  }
   let d = diags[idx]
-  if idx > 0 { let _ = out.write_string(",\n") }
-  let _ = out.write_string("    {\"code\": \"" + d.code + "\", \"message\": \"" + d.message + "\", \"severity\": \"" + d.severity + "\"}")
+  if idx > 0 {
+    let _ = out.write_string(",\n")
+  }
+  let _ = out.write_string(
+    "    {\"code\": \"" +
+    d.code +
+    "\", \"message\": \"" +
+    d.message +
+    "\", \"severity\": \"" +
+    d.severity +
+    "\"}",
+  )
   let _ = render_json_diagnostics(out, diags, idx + 1)
 }
 

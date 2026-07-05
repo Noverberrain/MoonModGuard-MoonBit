@@ -62,7 +62,9 @@ test "parse package imports with aliases" {
 ///|
 test "policy reports missing metadata and license violations" {
   let project = @moonmodguard.project_from(
-    mod_ok("name = \"wyc060514/tool\"\nlicense = \"GPL-3.0\"\ndescription = \"a useful tool for MoonBit\"\nkeywords = [\"audit\", \"moonbit\"]"),
+    mod_ok(
+      "name = \"wyc060514/tool\"\nlicense = \"GPL-3.0\"\ndescription = \"a useful tool for MoonBit\"\nkeywords = [\"audit\", \"moonbit\"]",
+    ),
     [],
   )
   let policy = @moonmodguard.default_policy()
@@ -107,7 +109,9 @@ test "scan project combines module and package imports" {
 ///|
 test "render markdown report" {
   let project = @moonmodguard.project_from(
-    mod_ok("name = \"wyc060514/tool\"\nlicense = \"GPL-3.0\"\ndescription = \"a useful tool for MoonBit\"\nkeywords = [\"audit\"]"),
+    mod_ok(
+      "name = \"wyc060514/tool\"\nlicense = \"GPL-3.0\"\ndescription = \"a useful tool for MoonBit\"\nkeywords = [\"audit\"]",
+    ),
     [],
   )
   let report = @moonmodguard.evaluate_policy(
