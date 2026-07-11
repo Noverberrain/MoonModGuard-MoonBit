@@ -237,3 +237,167 @@ test "permissive policy allows everything" {
   )
   assert_eq(report.risk_count, 0)
 }
+
+///|
+test "validate_name requires owner/package format" {
+  assert_true(@moonmodguard.validate_name("wyc060514/tool"))
+  assert_true(@moonmodguard.validate_name("a/b"))
+  assert_false(@moonmodguard.validate_name(""))
+  assert_false(@moonmodguard.validate_name("notool"))
+  assert_false(@moonmodguard.validate_name("a/b/c"))
+}
+
+///|
+test "keyword_quality checks minimum meaningful keywords" {
+  assert_true(
+    @moonmodguard.keyword_quality(["audit", "moonbit", "supply-chain"], 2),
+  )
+  assert_false(@moonmodguard.keyword_quality(["a", "b", "c"], 2))
+  assert_false(@moonmodguard.keyword_quality(["valid"], 2))
+  assert_true(@moonmodguard.keyword_quality(["audit", "moonbit"], 2))
+}
+
+///|
+test "is_risky_license detects copyleft licenses" {
+  assert_true(@moonmodguard.is_risky_license("GPL-3.0"))
+  assert_true(@moonmodguard.is_risky_license("AGPL-3.0"))
+  assert_false(@moonmodguard.is_risky_license("MIT"))
+  assert_false(@moonmodguard.is_risky_license("Apache-2.0"))
+}
+
+///|
+test "TrustPolicy grades dependencies" {
+  let policy = @moonmodguard.TrustPolicy::new()
+    .trust("moonbitlang/")
+    .allow("github.com/")
+    .block("bad-domain/")
+    .default_level(@moonmodguard.Blocked)
+  let level1 = policy.check("moonbitlang/x")
+  let level2 = policy.check("github.com/author/lib")
+  let level3 = policy.check("bad-domain/dep")
+  let level4 = policy.check("unknown/lib")
+  assert_true(level1 is @moonmodguard.Trusted)
+  assert_true(level2 is @moonmodguard.Allowed)
+  assert_true(level3 is @moonmodguard.Blocked)
+  assert_true(level4 is @moonmodguard.Blocked)
+}
+
+///|
+test "evaluate_enhanced with CSP trust policy" {
+  let project = @moonmodguard.ProjectModel::{
+    name: "test/proj",
+    license: "MIT",
+    readme: "R.md",
+    repository: "https://r.test",
+    description: "A properly described test project",
+    keywords: ["audit", "moonbit", "tool"],
+    dependencies: [
+      @moonmodguard.Dependency::{ source: "moonbitlang/x", as_name: None },
+      @moonmodguard.Dependency::{ source: "bad-domain/lib", as_name: None },
+    ],
+  }
+  let policy = @moonmodguard.EnhancedPolicy::default()
+  let report = @moonmodguard.evaluate_enhanced(project, policy)
+  assert_eq(report.risk_count, 1)
+  assert_eq(report.diagnostics[0].code, "blocked-dependency")
+}
+
+///|
+test "positioned_diagnostic renders GitHub annotation" {
+  let d = @moonmodguard.positioned_diagnostic(
+    "missing-readme", "README not found", "moon.mod", 12,
+  )
+  assert_eq(d.code, "missing-readme")
+  assert_eq(d.file, "moon.mod")
+  assert_eq(d.line, 12)
+  let annotation = @moonmodguard.render_annotation(d)
+  assert_true(annotation.contains("file=moon.mod"))
+  assert_true(annotation.contains("line=12"))
+}
+
+///|
+test "render_summary produces markdown table" {
+  let d1 = @moonmodguard.Diagnostic::{
+    code: "e1",
+    message: "",
+    severity: "error",
+  }
+  let d2 = @moonmodguard.Diagnostic::{
+    code: "w1",
+    message: "",
+    severity: "warning",
+  }
+  let project = @moonmodguard.ProjectModel::{
+    name: "test/proj",
+    license: "MIT",
+    readme: "R.md",
+    repository: "r",
+    description: "d",
+    keywords: [],
+    dependencies: [],
+  }
+  let report = @moonmodguard.AuditReport::{
+    project,
+    diagnostics: [d1, d2],
+    risk_count: 2,
+    dependency_count: 0,
+  }
+  let summary = @moonmodguard.render_summary(report)
+  assert_true(summary.contains("| error    | 1 |"))
+  assert_true(summary.contains("| warning  | 1 |"))
+}
+
+///|
+test "render_full_report includes summary section" {
+  let project = @moonmodguard.ProjectModel::{
+    name: "test/proj",
+    license: "MIT",
+    readme: "R.md",
+    repository: "r",
+    description: "d",
+    keywords: [],
+    dependencies: [],
+  }
+  let report = @moonmodguard.AuditReport::{
+    project,
+    diagnostics: [],
+    risk_count: 0,
+    dependency_count: 0,
+  }
+  let full = @moonmodguard.render_full_report(report)
+  assert_true(full.contains("## Project"))
+  assert_true(full.contains("## Summary"))
+  assert_true(full.contains("## Diagnostics"))
+}
+
+///|
+test "batch_audit aggregates multiple projects" {
+  let snapshot1 = @moonmodguard.ProjectSnapshot::{
+    module_manifest: mod_ok(
+      "name = \"a/proj1\"\nlicense = \"MIT\"\nreadme = \"R.md\"\nrepository = \"r\"\ndescription = \"A properly described test project\"\nkeywords = [\"audit\"]\nversion = \"0.1.0\"",
+    ),
+    packages: [],
+  }
+  let snapshot2 = @moonmodguard.ProjectSnapshot::{
+    module_manifest: mod_ok("name = \"a/proj2\""),
+    packages: [pkg_ok("import { \"unknown/dep\" }")],
+  }
+  let summary = @moonmodguard.batch_audit([snapshot1, snapshot2])
+  assert_eq(summary.total_projects, 2)
+  assert_eq(summary.projects_clean, 1)
+  assert_eq(summary.projects_risky, 1)
+}
+
+///|
+test "render_batch_summary outputs table" {
+  let summary = @moonmodguard.AuditSummary::{
+    total_projects: 5,
+    total_diagnostics: 3,
+    projects_clean: 2,
+    projects_risky: 3,
+  }
+  let output = @moonmodguard.render_batch_summary(summary)
+  assert_true(output.contains("| Projects audited | 5 |"))
+  assert_true(output.contains("| Projects clean   | 2 |"))
+  assert_true(output.contains("| Projects risky   | 3 |"))
+}

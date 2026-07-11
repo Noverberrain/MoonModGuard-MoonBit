@@ -754,3 +754,331 @@ pub fn count_by_severity(
   }
   count
 }
+
+// ------- Trust Levels (CSP-style grading) -------
+
+///|
+pub(all) enum TrustLevel {
+  Trusted
+  Allowed
+  Blocked
+} derive(Eq)
+
+///|
+pub(all) struct TrustRule {
+  prefix : String
+  level : TrustLevel
+} derive(Eq)
+
+///|
+pub(all) struct TrustPolicy {
+  rules : Array[TrustRule]
+  default_level : TrustLevel
+} derive(Eq)
+
+///|
+pub fn TrustPolicy::new() -> TrustPolicy {
+  { rules: [], default_level: Blocked }
+}
+
+///|
+pub fn TrustPolicy::trust(self : TrustPolicy, prefix : String) -> TrustPolicy {
+  let new_rules = self.rules
+  new_rules.push({ prefix, level: Trusted })
+  { ..self, rules: new_rules }
+}
+
+///|
+pub fn TrustPolicy::allow(self : TrustPolicy, prefix : String) -> TrustPolicy {
+  let new_rules = self.rules
+  new_rules.push({ prefix, level: Allowed })
+  { ..self, rules: new_rules }
+}
+
+///|
+pub fn TrustPolicy::block(self : TrustPolicy, prefix : String) -> TrustPolicy {
+  let new_rules = self.rules
+  new_rules.push({ prefix, level: Blocked })
+  { ..self, rules: new_rules }
+}
+
+///|
+pub fn TrustPolicy::default_level(
+  self : TrustPolicy,
+  level : TrustLevel,
+) -> TrustPolicy {
+  { ..self, default_level: level }
+}
+
+///|
+pub fn TrustPolicy::check(self : TrustPolicy, source : String) -> TrustLevel {
+  for rule in self.rules {
+    if starts_with_string(source, rule.prefix) {
+      return rule.level
+    }
+  }
+  self.default_level
+}
+
+// ------- Enhanced Policy -------
+
+///|
+pub(all) struct EnhancedPolicy {
+  trust_policy : TrustPolicy
+  require_readme : Bool
+  require_repository : Bool
+  require_license : Bool
+  require_description : Bool
+  min_description_length : Int
+  require_keywords : Bool
+  min_keywords : Int
+  require_version : Bool
+  max_dependencies : Int
+} derive(Eq)
+
+///|
+pub fn EnhancedPolicy::default() -> EnhancedPolicy {
+  {
+    trust_policy: TrustPolicy::new().trust("moonbitlang/").trust("wyc060514/"),
+    require_readme: true,
+    require_repository: true,
+    require_license: true,
+    require_description: true,
+    min_description_length: 10,
+    require_keywords: true,
+    min_keywords: 1,
+    require_version: true,
+    max_dependencies: 50,
+  }
+}
+
+// ------- Enhanced Audit -------
+
+///|
+pub fn evaluate_enhanced(
+  project : ProjectModel,
+  policy : EnhancedPolicy,
+) -> AuditReport {
+  let diagnostics : Array[Diagnostic] = []
+
+  // Metadata checks
+  if policy.require_readme && project.readme.length() == 0 {
+    diagnostics.push(diagnostic("missing-readme", "README is not declared"))
+  }
+  if policy.require_repository && project.repository.length() == 0 {
+    diagnostics.push(
+      diagnostic("missing-repository", "repository is not declared"),
+    )
+  }
+  if policy.require_license && project.license.length() == 0 {
+    diagnostics.push(diagnostic("missing-license", "license is not declared"))
+  }
+  if policy.require_description &&
+    project.description.length() < policy.min_description_length {
+    diagnostics.push(
+      diagnostic(
+        "description-too-short",
+        "description is too short (\{project.description.length()} chars, min \{policy.min_description_length})",
+      ),
+    )
+  }
+  if policy.require_keywords && project.keywords.length() < policy.min_keywords {
+    diagnostics.push(
+      diagnostic(
+        "missing-keywords",
+        "only \{project.keywords.length()} keywords, min \{policy.min_keywords} required",
+      ),
+    )
+  }
+  if policy.max_dependencies > 0 &&
+    project.dependencies.length() > policy.max_dependencies {
+    diagnostics.push(
+      diagnostic(
+        "too-many-dependencies",
+        "\{project.dependencies.length()} dependencies exceeds limit of \{policy.max_dependencies}",
+      ),
+    )
+  }
+
+  // Trust checks with graded levels
+  let seen : Array[String] = []
+  for dep in project.dependencies {
+    if contains_string(seen, dep.source) {
+      diagnostics.push(
+        diagnostic(
+          "duplicate-dependency",
+          "dependency \{dep.source} is duplicated",
+        ),
+      )
+    } else {
+      let level = policy.trust_policy.check(dep.source)
+      match level {
+        Blocked =>
+          diagnostics.push(
+            diagnostic(
+              "blocked-dependency",
+              "dependency \{dep.source} is blocked by trust policy",
+            ),
+          )
+        Allowed => ()
+        Trusted => ()
+      }
+      seen.push(dep.source)
+    }
+  }
+
+  {
+    project,
+    diagnostics,
+    risk_count: diagnostics.length(),
+    dependency_count: project.dependencies.length(),
+  }
+}
+
+///|
+/// Check that the project name follows the `owner/package` convention.
+pub fn validate_name(name : String) -> Bool {
+  let parts = name.split("/").to_array()
+  if parts.length() != 2 {
+    return false
+  }
+  let owner = parts[0]
+  let pkg = parts[1]
+  owner.length() > 0 && pkg.length() > 0
+}
+
+///|
+/// Check keyword quality: at least `min` meaningful keywords (length >= 3).
+pub fn keyword_quality(keywords : Array[String], min : Int) -> Bool {
+  if keywords.length() < min {
+    return false
+  }
+  let mut count = 0
+  for kw in keywords {
+    if kw.length() >= 3 {
+      count = count + 1
+    }
+  }
+  count >= min
+}
+
+///|
+/// Check for known-risky licenses (GPL, AGPL, etc.).
+pub fn is_risky_license(license : String) -> Bool {
+  let risky = ["GPL-2.0", "GPL-3.0", "AGPL-3.0", "LGPL-2.1", "LGPL-3.0"]
+  contains_string(risky, license)
+}
+
+// ------- Enhanced Rendering -------
+
+///|
+/// Render a summary table of diagnostics grouped by severity.
+pub fn render_summary(report : AuditReport) -> String {
+  let errors = count_by_severity(report.diagnostics, "error")
+  let warnings = count_by_severity(report.diagnostics, "warning")
+  let infos = count_by_severity(report.diagnostics, "info")
+  let out = StringBuilder()
+  out.write_string("| Severity | Count |\n")
+  out.write_string("|----------|-------|\n")
+  out.write_string("| error    | \{errors} |\n")
+  out.write_string("| warning  | \{warnings} |\n")
+  out.write_string("| info     | \{infos} |\n")
+  out.to_string()
+}
+
+///|
+/// Render a full audit report with a summary section.
+pub fn render_full_report(report : AuditReport) -> String {
+  let out = StringBuilder()
+  out.write_string("# MoonModGuard Audit Report\n\n")
+  out.write_string("## Project\n\n")
+  out.write_string("- Name: \{report.project.name}\n")
+  out.write_string("- License: \{report.project.license}\n")
+  out.write_string("- Dependencies: \{report.dependency_count}\n")
+  out.write_string("- Risks: \{report.risk_count}\n\n")
+  out.write_string("## Summary\n\n")
+  out.write_string(render_summary(report))
+  out.write_string("\n\n## Diagnostics\n\n")
+  if report.diagnostics.length() == 0 {
+    out.write_string("- No policy risks found.\n")
+  } else {
+    for i in 0..<report.diagnostics.length() {
+      let d = report.diagnostics[i]
+      out.write_string(
+        "\{i + 1}. [\{d.severity}] **\{d.code}**: \{d.message}\n",
+      )
+    }
+  }
+  out.to_string()
+}
+
+///|
+/// Location-aware diagnostic with file path and position.
+pub(all) struct PositionedDiagnostic {
+  code : String
+  message : String
+  severity : String
+  file : String
+  line : Int
+} derive(Eq)
+
+///|
+/// Convert a Position to a diagnostic with location info.
+pub fn positioned_diagnostic(
+  code : String,
+  message : String,
+  file : String,
+  line : Int,
+) -> PositionedDiagnostic {
+  { code, message, severity: "error", file, line }
+}
+
+///|
+/// Render a positioned diagnostic as a GitHub Actions annotation.
+pub fn render_annotation(d : PositionedDiagnostic) -> String {
+  "::\{d.severity} file=\{d.file},line=\{d.line}::\{d.code}: \{d.message}"
+}
+
+// ------- Batch Audit -------
+
+///|
+pub(all) struct AuditSummary {
+  total_projects : Int
+  total_diagnostics : Int
+  projects_clean : Int
+  projects_risky : Int
+} derive(Eq)
+
+///|
+/// Run a batch audit on multiple projects and return a summary.
+pub fn batch_audit(snapshots : Array[ProjectSnapshot]) -> AuditSummary {
+  let mut total_projects = 0
+  let mut total_diagnostics = 0
+  let mut projects_clean = 0
+  let mut projects_risky = 0
+  for snapshot in snapshots {
+    let report = scan_project(snapshot)
+    total_projects = total_projects + 1
+    total_diagnostics = total_diagnostics + report.risk_count
+    if report.risk_count == 0 {
+      projects_clean = projects_clean + 1
+    } else {
+      projects_risky = projects_risky + 1
+    }
+  }
+  { total_projects, total_diagnostics, projects_clean, projects_risky }
+}
+
+///|
+/// Render a batch audit result as a concise table.
+pub fn render_batch_summary(summary : AuditSummary) -> String {
+  let out = StringBuilder()
+  out.write_string("# Batch Audit Summary\n\n")
+  out.write_string("| Metric | Value |\n")
+  out.write_string("|--------|-------|\n")
+  out.write_string("| Projects audited | \{summary.total_projects} |\n")
+  out.write_string("| Projects clean   | \{summary.projects_clean} |\n")
+  out.write_string("| Projects risky   | \{summary.projects_risky} |\n")
+  out.write_string("| Total diagnostics | \{summary.total_diagnostics} |\n")
+  out.to_string()
+}
