@@ -1,10 +1,10 @@
-name = "wyc060514/moonmodguard"
+name = "Noverberrain/moonmodguard"
 
 version = "0.1.0"
 
 readme = "README.md"
 
-repository = "https://github.com/Noverberrain/MoonModGuard-MoonBit-"
+repository = "https://gitlink.org.cn/Wyc060514/moonmodguard"
 
 license = "Apache-2.0"
 

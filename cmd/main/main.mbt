@@ -5,9 +5,11 @@ fn main {
     "readme = \"README.md\"\n" +
     "repository = \"https://gitlink.org.cn/Wyc060514/moonmodguard\"\n" +
     "license = \"Apache-2.0\"\n" +
+    "description = \"A MoonBit project manifest and supply-chain policy auditor.\"\n" +
     "keywords = [ \"audit\", \"moonbit\" ]\n" +
-    "import { \"moonbitlang/x\" @x }"
-  let pkg_text = "import { \"wyc060514/moonmodguard\" @guard }"
+    "import { \"moonbitlang/x\" @x }\n" +
+    "import { \"wyc060514/lib\" @lib }"
+  let pkg_text = ""
   match (@guard.parse_mod(mod_text), @guard.parse_pkg(pkg_text)) {
     (Ok(module_manifest), Ok(package_manifest)) => {
       let report = @guard.scan_project(@guard.ProjectSnapshot::{

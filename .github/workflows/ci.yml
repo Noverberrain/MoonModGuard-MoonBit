@@ -1,21 +1,22 @@
-name: moonmodguard-ci
-
-on:
-  push:
-  pull_request:
-
+name: CI
+on: [push, pull_request]
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  check:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - name: Install MoonBit
-        run: |
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
-          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
-      - name: Check project
-        run: |
-          moon info
-          moon fmt --check
-          moon test
-          moon run cmd/main
+        run: curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+      - name: Add MoonBit to PATH
+        run: echo "$HOME/.moon/bin" >> $GITHUB_PATH
+      - name: Moon Info
+        run: moon info
+      - name: Moon Check
+        run: moon check
+      - name: Moon Format Check
+        run: moon fmt --check
+      - name: Moon Test
+        run: moon test

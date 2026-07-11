@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "wyc060514/moonmodguard"
+package "Noverberrain/moonmodguard"
 
 // Values
 pub fn default_policy() -> Policy
@@ -12,11 +12,17 @@ pub fn parse_mod(String) -> Result[ModuleManifest, GuardError]
 
 pub fn parse_pkg(String) -> Result[PackageManifest, GuardError]
 
+pub fn permissive_policy() -> Policy
+
 pub fn project_from(ModuleManifest, Array[PackageManifest]) -> ProjectModel
+
+pub fn render_json(AuditReport) -> String
 
 pub fn render_markdown(AuditReport) -> String
 
 pub fn scan_project(ProjectSnapshot) -> AuditReport
+
+pub fn strict_policy() -> Policy
 
 // Errors
 
@@ -64,6 +70,10 @@ pub(all) struct Policy {
   require_readme : Bool
   require_repository : Bool
   require_license : Bool
+  require_description : Bool
+  min_description_length : Int
+  require_keywords : Bool
+  min_keywords : Int
 } derive(Eq)
 
 pub(all) struct Position {
@@ -76,6 +86,8 @@ pub(all) struct ProjectModel {
   license : String
   readme : String
   repository : String
+  description : String
+  keywords : Array[String]
   dependencies : Array[Dependency]
 } derive(Eq)
 

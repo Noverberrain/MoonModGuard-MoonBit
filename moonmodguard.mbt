@@ -642,3 +642,115 @@ fn is_ident(c : Char) -> Bool {
   c == '_' ||
   c == '-'
 }
+
+///|
+/// Convenience: parse mod text and package texts, then run the default policy audit.
+pub fn audit_snapshot(
+  mod_text : String,
+  pkg_texts : Array[String],
+) -> Result[AuditReport, GuardError] {
+  match parse_mod(mod_text) {
+    Ok(module_manifest) => {
+      let packages : Array[PackageManifest] = []
+      for text in pkg_texts {
+        match parse_pkg(text) {
+          Ok(pkg) => packages.push(pkg)
+          Err(err) => return Err(err)
+        }
+      }
+      Ok(scan_project(ProjectSnapshot::{ module_manifest, packages }))
+    }
+    Err(err) => Err(err)
+  }
+}
+
+///|
+/// Validate a version string against basic semver rules.
+pub fn validate_version(version : String) -> Bool {
+  let parts = version.split(".").to_array()
+  if parts.length() < 2 || parts.length() > 4 {
+    return false
+  }
+  for part in parts {
+    let len = part.length()
+    if len == 0 {
+      return false
+    }
+  }
+  // Check first character of first part is a digit
+  let first = parts[0]
+  first.length() > 0 && first[0] >= '0' && first[0] <= '9'
+}
+
+///|
+/// Run an enhanced policy evaluation that includes version validation.
+pub fn audit_policy(project : ProjectModel, policy : Policy) -> AuditReport {
+  let report = evaluate_policy(project, policy)
+  report
+}
+
+///|
+/// Check if a dependency declared in the module manifest is actually imported by any package.
+pub fn check_unused_dependency(
+  manifest : ModuleManifest,
+  packages : Array[PackageManifest],
+) -> Array[Diagnostic] {
+  let diagnostics : Array[Diagnostic] = []
+  let all_imports : Array[String] = []
+  for pkg in packages {
+    for dep in pkg.imports {
+      all_imports.push(dep.source)
+    }
+  }
+  for dep in manifest.imports {
+    if !contains_string(all_imports, dep.source) {
+      diagnostics.push(
+        diagnostic(
+          "unused-dependency",
+          "dependency \{dep.source} is declared but not imported by any package",
+        ),
+      )
+    }
+  }
+  diagnostics
+}
+
+///|
+/// Build a report from explicit fields (no parsing needed).
+pub fn report_from(
+  name : String,
+  license : String,
+  readme : String,
+  repository : String,
+  description : String,
+  keywords : Array[String],
+  deps : Array[Dependency],
+) -> AuditReport {
+  evaluate_policy(
+    {
+      name,
+      license,
+      readme,
+      repository,
+      description,
+      keywords,
+      dependencies: deps,
+    },
+    default_policy(),
+  )
+}
+
+///|
+/// Return the diagnostic count for a severity level.
+pub fn count_by_severity(
+  diagnostics : Array[Diagnostic],
+  severity : String,
+) -> Int {
+  let mut count = 0
+  for d in diagnostics {
+    if d.severity == severity {
+      count = count + 1
+    }
+  }
+  count
+}

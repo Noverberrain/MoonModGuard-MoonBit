@@ -123,3 +123,117 @@ test "render markdown report" {
   assert_true(markdown.contains("- Project: wyc060514/tool"))
   assert_true(markdown.contains("license-not-allowed"))
 }
+
+///|
+test "validate_version accepts semver" {
+  assert_true(@moonmodguard.validate_version("0.1.0"))
+  assert_true(@moonmodguard.validate_version("1.2.3"))
+  assert_true(@moonmodguard.validate_version("10.20.30"))
+  assert_true(@moonmodguard.validate_version("0.1.0-alpha"))
+  assert_false(@moonmodguard.validate_version(""))
+  assert_false(@moonmodguard.validate_version("not-a-version"))
+  assert_false(@moonmodguard.validate_version("1"))
+}
+
+///|
+test "audit_snapshot convenience function" {
+  match
+    @moonmodguard.audit_snapshot(
+      "name = \"wyc060514/tool\"\nlicense = \"MIT\"\ndescription = \"A test project for auditing\"\nkeywords = [ \"audit\" ]\nreadme = \"R.md\"\nrepository = \"https://example.test/repo\"\nversion = \"0.1.0\"\nimport { \"moonbitlang/x\" @x }",
+      [],
+    ) {
+    Ok(report) => {
+      assert_eq(report.risk_count, 0)
+      assert_eq(report.dependency_count, 1)
+    }
+    Err(err) =>
+      abort("unexpected parse error: " + @moonmodguard.format_error(err))
+  }
+}
+
+///|
+test "check_unused_dependency detects unused deps" {
+  let manifest = mod_ok(
+    "name = \"wyc060514/tool\"\nversion = \"0.1.0\"\nimport { \"unused-dep\" @unused }\nimport { \"used-dep\" @used }",
+  )
+  let pkg = pkg_ok("import { \"used-dep\" @used }")
+  let diags = @moonmodguard.check_unused_dependency(manifest, [pkg])
+  assert_eq(diags.length(), 1)
+  assert_eq(diags[0].code, "unused-dependency")
+}
+
+///|
+test "count_by_severity tallies correctly" {
+  let d1 = @moonmodguard.Diagnostic::{
+    code: "e1",
+    message: "m1",
+    severity: "error",
+  }
+  let d2 = @moonmodguard.Diagnostic::{
+    code: "w1",
+    message: "m2",
+    severity: "warning",
+  }
+  let d3 = @moonmodguard.Diagnostic::{
+    code: "e2",
+    message: "m3",
+    severity: "error",
+  }
+  let count = @moonmodguard.count_by_severity([d1, d2, d3], "error")
+  assert_eq(count, 2)
+}
+
+///|
+test "report_from builds audit directly" {
+  let report = @moonmodguard.report_from(
+    "test/proj",
+    "MIT",
+    "R.md",
+    "https://r.test",
+    "desc enough words here",
+    ["tag"],
+    [],
+  )
+  assert_eq(report.risk_count, 0)
+}
+
+///|
+test "strict policy enforces longer description" {
+  let project = @moonmodguard.ProjectModel::{
+    name: "test/proj",
+    license: "MIT",
+    readme: "R.md",
+    repository: "https://r.test",
+    description: "short",
+    keywords: ["audit", "test", "moonbit"],
+    dependencies: [],
+  }
+  let report = @moonmodguard.evaluate_policy(
+    project,
+    @moonmodguard.strict_policy(),
+  )
+  assert_true(report.risk_count > 0)
+}
+
+///|
+test "permissive policy allows everything" {
+  let project = @moonmodguard.ProjectModel::{
+    name: "test/proj",
+    license: "Unlicense",
+    readme: "",
+    repository: "",
+    description: "",
+    keywords: [],
+    dependencies: [
+      @moonmodguard.Dependency::{
+        source: "github.com/anyone/lib",
+        as_name: None,
+      },
+    ],
+  }
+  let report = @moonmodguard.evaluate_policy(
+    project,
+    @moonmodguard.permissive_policy(),
+  )
+  assert_eq(report.risk_count, 0)
+}
