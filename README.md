@@ -19,6 +19,12 @@ The first version is deliberately dependency-free and accepts explicit strings
 or snapshots instead of scanning the filesystem. This keeps the core portable
 and testable while leaving room for later CI and workspace integrations.
 
+## Installation
+
+```bash
+moon add Noverberrain/moonmodguard
+```
+
 ## Why This Exists
 
 MoonBit projects rely on compact manifest files for package identity,
