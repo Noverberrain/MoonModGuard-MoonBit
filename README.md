@@ -172,6 +172,44 @@ let json = @moonmodguard.render_json(report)
 // All string values are properly escaped (quotes, backslashes, newlines, tabs)
 ```
 
+### SARIF Output (GitHub Code Scanning)
+
+```mbt nocheck
+let sarif = @moonmodguard.render_sarif(report, "MoonModGuard")
+// Valid SARIF v2.1.0 JSON for GitHub Code Scanning upload
+```
+
+### Workspace Scanner
+
+```bash
+# Recursively audit all packages under a directory
+moon run cmd/main -- --workspace .
+```
+
+```mbt nocheck
+let pkgs = @moonmodguard.discover_packages(".") raise
+let summary = @moonmodguard.audit_workspace(".") raise
+println(@moonmodguard.render_batch_summary(summary))
+```
+
+### GitHub Annotations
+
+```bash
+# Output as GitHub Actions workflow commands
+moon run cmd/main -- moon.mod --annotations
+```
+
+### mooncake.yaml Consistency
+
+```mbt nocheck
+let mooncake = match @moonmodguard.parse_mooncake(yaml_text) {
+  Ok(m) => m
+  Err(_) => abort("parse error")
+}
+let diags = @moonmodguard.check_mooncake_consistency(mod_manifest, mooncake)
+// Reports mismatches between moon.mod and mooncake.yaml
+```
+
 Public API additions:
 
 - `check_missing_versioned_dep(manifest, packages) -> Array[Diagnostic]`

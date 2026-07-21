@@ -6,6 +6,7 @@ fn main raise {
   let mut enhanced = false
   let mut sarif = false
   let mut workspace = false
+  let mut annotations = false
 
   let mut i = 1
   while i < args.length() {
@@ -21,6 +22,9 @@ fn main raise {
       i = i + 1
     } else if arg == "--sarif" {
       sarif = true
+      i = i + 1
+    } else if arg == "--annotations" {
+      annotations = true
       i = i + 1
     } else if arg == "--workspace" || arg == "-w" {
       workspace = true
@@ -82,7 +86,12 @@ fn main raise {
       })
   }
 
-  if sarif {
+  if annotations {
+    for d in report.diagnostics {
+      let pd = @guard.positioned_diagnostic(d.code, d.message, path, 1)
+      println(@guard.render_annotation(pd))
+    }
+  } else if sarif {
     println(@guard.render_sarif(report, "MoonModGuard"))
   } else if json_mode {
     println(@guard.render_json(report))
@@ -99,6 +108,7 @@ fn print_usage() -> Unit {
   println("Options:")
   println("  --json        Output as JSON (default: Markdown)")
   println("  --sarif       Output as SARIF v2.1.0")
+  println("  --annotations Output as GitHub Actions workflow commands")
   println("  --enhanced    Use EnhancedPolicy with trust grading")
   println("  --workspace   Recursively audit all packages under a directory")
   println("  -w            Short for --workspace")

@@ -24,3 +24,5 @@ jobs:
         run: moon build
       - name: Moon Test
         run: moon test
+      - name: Check Interface Diff
+        run: moon info && git diff --exit-code
