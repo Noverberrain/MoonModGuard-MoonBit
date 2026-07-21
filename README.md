@@ -100,6 +100,93 @@ Public API:
 - `render_markdown(report : AuditReport) -> String`
 - `format_error(err : GuardError) -> String`
 
+## Consumer Guide
+
+### CLI Usage
+
+```bash
+# Audit a moon.mod file, output Markdown report
+moon run cmd/main -- moon.mod
+
+# Output JSON instead of Markdown
+moon run cmd/main -- moon.mod --json
+
+# Use EnhancedPolicy with trust grading
+moon run cmd/main -- moon.mod --enhanced
+```
+
+### EnhancedPolicy with Trust Grading
+
+```mbt nocheck
+let manifest = match @moonmodguard.parse_mod(mod_text) {
+  Ok(m) => m
+  Err(_) => abort("parse error")
+}
+let project = @moonmodguard.project_from(manifest, [])
+let report = @moonmodguard.evaluate_enhanced(project, @moonmodguard.EnhancedPolicy::default())
+println(@moonmodguard.render_full_report(report))
+```
+
+`EnhancedPolicy` adds CSP-style trust grading (Trusted / Allowed / Blocked), max-dependency limits, and version validation on top of the base policy checks.
+
+### Trust Policy Builder
+
+```mbt nocheck
+let policy = @moonmodguard.TrustPolicy::new()
+  .trust("moonbitlang/")
+  .allow("github.com/")
+  .block("bad-domain/")
+  .default_level(@moonmodguard.Blocked)
+
+let level = policy.check("moonbitlang/x")
+// level is Trusted
+```
+
+### Batch Audit
+
+```mbt nocheck
+let snapshots = [
+  @moonmodguard.ProjectSnapshot::{ module_manifest: m1, packages: [] },
+  @moonmodguard.ProjectSnapshot::{ module_manifest: m2, packages: [] },
+]
+let summary = @moonmodguard.batch_audit(snapshots)
+println(@moonmodguard.render_batch_summary(summary))
+```
+
+### Versioned Dependencies
+
+The parser now supports `@version` in dependency declarations:
+
+```raw
+import { "moonbitlang/x@0.4.46" @x }
+```
+
+Use `check_version_consistency` to validate declared versions, and
+`check_missing_versioned_dep` to match module-level versioned deps against
+package-level imports.
+
+### JSON Output
+
+```mbt nocheck
+let json = @moonmodguard.render_json(report)
+// All string values are properly escaped (quotes, backslashes, newlines, tabs)
+```
+
+Public API additions:
+
+- `check_missing_versioned_dep(manifest, packages) -> Array[Diagnostic]`
+- `check_version_consistency(manifest) -> Array[Diagnostic]`
+- `evaluate_enhanced(project, policy) -> AuditReport`
+- `render_json(report) -> String`
+- `render_full_report(report) -> String`
+- `render_summary(report) -> String`
+- `batch_audit(snapshots) -> AuditSummary`
+- `render_batch_summary(summary) -> String`
+- `TrustPolicy::new() / .trust() / .allow() / .block() / .default_level()`
+- `EnhancedPolicy::default()`
+
+Dependency struct now includes `version : String?` for versioned dependency declarations.
+
 ## Design Notes
 
 The parser handles the common MoonBit manifest shape used by package metadata

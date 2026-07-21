@@ -227,6 +227,7 @@ test "permissive policy allows everything" {
     dependencies: [
       @moonmodguard.Dependency::{
         source: "github.com/anyone/lib",
+        version: None,
         as_name: None,
       },
     ],
@@ -292,8 +293,16 @@ test "evaluate_enhanced with CSP trust policy" {
     description: "A properly described test project",
     keywords: ["audit", "moonbit", "tool"],
     dependencies: [
-      @moonmodguard.Dependency::{ source: "moonbitlang/x", as_name: None },
-      @moonmodguard.Dependency::{ source: "bad-domain/lib", as_name: None },
+      @moonmodguard.Dependency::{
+        source: "moonbitlang/x",
+        version: None,
+        as_name: None,
+      },
+      @moonmodguard.Dependency::{
+        source: "bad-domain/lib",
+        version: None,
+        as_name: None,
+      },
     ],
   }
   let policy = @moonmodguard.EnhancedPolicy::default()
@@ -400,4 +409,136 @@ test "render_batch_summary outputs table" {
   assert_true(output.contains("| Projects audited | 5 |"))
   assert_true(output.contains("| Projects clean   | 2 |"))
   assert_true(output.contains("| Projects risky   | 3 |"))
+}
+
+// ---- Versioned dependency parsing ----
+
+///|
+test "parse versioned dependency with @version" {
+  let manifest = mod_ok(
+    "name = \"wyc060514/tool\"\nversion = \"0.1.0\"\nimport { \"moonbitlang/x@0.4.46\" @x }",
+  )
+  assert_eq(manifest.imports.length(), 1)
+  assert_eq(manifest.imports[0].source, "moonbitlang/x")
+  assert_eq(manifest.imports[0].version, Some("0.4.46"))
+  assert_eq(dep_as_name(manifest.imports[0]), "x")
+}
+
+///|
+test "parse unversioned dependency" {
+  let manifest = mod_ok(
+    "name = \"wyc060514/tool\"\nimport { \"moonbitlang/x\" @x }",
+  )
+  assert_eq(manifest.imports[0].version, None)
+}
+
+///|
+test "parse @ in non-version position is kept as source" {
+  let manifest = mod_ok(
+    "name = \"wyc060514/tool\"\nimport { \"@scoped/pkg\" @pkg }",
+  )
+  assert_eq(manifest.imports[0].source, "@scoped/pkg")
+  assert_eq(manifest.imports[0].version, None)
+}
+
+///|
+test "check_version_consistency flags invalid versions" {
+  let manifest = mod_ok(
+    "name = \"wyc060514/tool\"\nimport { \"moonbitlang/x@0.x\" @x }",
+  )
+  let diags = @moonmodguard.check_version_consistency(manifest)
+  assert_eq(diags.length(), 1)
+  assert_eq(diags[0].code, "invalid-version")
+}
+
+///|
+test "check_missing_versioned_dep detects package imports without module dep" {
+  let manifest = mod_ok(
+    "name = \"wyc060514/tool\"\nimport { \"moonbitlang/x@0.4.46\" @x }",
+  )
+  let pkg = pkg_ok(
+    "import { \"moonbitlang/x\" @x }\nimport { \"unmatched/lib\" @lib }",
+  )
+  let diags = @moonmodguard.check_missing_versioned_dep(manifest, [pkg])
+  assert_eq(diags.length(), 1)
+  assert_eq(diags[0].code, "version-mismatch")
+}
+
+// ---- JSON escaping ----
+
+///|
+test "render_json escapes special characters" {
+  let project = @moonmodguard.ProjectModel::{
+    name: "test/proj",
+    license: "MIT\nwith newline",
+    readme: "R.md",
+    repository: "r",
+    description: "A \"cool\" tool",
+    keywords: [],
+    dependencies: [],
+  }
+  let report = @moonmodguard.AuditReport::{
+    project,
+    diagnostics: [
+      @moonmodguard.Diagnostic::{
+        code: "err",
+        message: "has \"quotes\" and \\backslash",
+        severity: "error",
+      },
+    ],
+    risk_count: 1,
+    dependency_count: 0,
+  }
+  let json = @moonmodguard.render_json(report)
+  assert_true(json.has_prefix("{"))
+  assert_true(json.contains("\\\\backslash"))
+}
+
+///|
+test "render_json escape control characters" {
+  let project = @moonmodguard.ProjectModel::{
+    name: "t/p",
+    license: "L",
+    readme: "R",
+    repository: "r",
+    description: "d",
+    keywords: [],
+    dependencies: [],
+  }
+  let report = @moonmodguard.AuditReport::{
+    project,
+    diagnostics: [
+      @moonmodguard.Diagnostic::{
+        code: "x",
+        message: "tab\there",
+        severity: "info",
+      },
+    ],
+    risk_count: 0,
+    dependency_count: 0,
+  }
+  let json = @moonmodguard.render_json(report)
+  assert_true(json.contains("\\t"))
+}
+
+// ---- Enhanced semver validation ----
+
+///|
+test "validate_version strict semver" {
+  assert_true(@moonmodguard.validate_version("0.1.0"))
+  assert_true(@moonmodguard.validate_version("1.2.3"))
+  assert_true(@moonmodguard.validate_version("10.20.30"))
+  assert_true(@moonmodguard.validate_version("0.1.0-alpha"))
+  assert_true(@moonmodguard.validate_version("1.0.0-beta.1"))
+  assert_true(@moonmodguard.validate_version("1.0.0+build.123"))
+  assert_true(@moonmodguard.validate_version("1.0.0-alpha+exp.sha.5114f85"))
+  assert_false(@moonmodguard.validate_version(""))
+  assert_false(@moonmodguard.validate_version("not-a-version"))
+  assert_false(@moonmodguard.validate_version("1"))
+  assert_false(@moonmodguard.validate_version("1.0"))
+  assert_false(@moonmodguard.validate_version("01.0.0"))
+  assert_false(@moonmodguard.validate_version("1.02.3"))
+  assert_false(@moonmodguard.validate_version("v1.0.0"))
+  assert_false(@moonmodguard.validate_version("1.0.0-"))
+  assert_false(@moonmodguard.validate_version("1.0.0+"))
 }

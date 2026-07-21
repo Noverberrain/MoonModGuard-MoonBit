@@ -2,11 +2,31 @@
 package "Noverberrain/moonmodguard"
 
 // Values
+pub fn audit_policy(ProjectModel, Policy) -> AuditReport
+
+pub fn audit_snapshot(String, Array[String]) -> Result[AuditReport, GuardError]
+
+pub fn batch_audit(Array[ProjectSnapshot]) -> AuditSummary
+
+pub fn check_missing_versioned_dep(ModuleManifest, Array[PackageManifest]) -> Array[Diagnostic]
+
+pub fn check_unused_dependency(ModuleManifest, Array[PackageManifest]) -> Array[Diagnostic]
+
+pub fn check_version_consistency(ModuleManifest) -> Array[Diagnostic]
+
+pub fn count_by_severity(Array[Diagnostic], String) -> Int
+
 pub fn default_policy() -> Policy
+
+pub fn evaluate_enhanced(ProjectModel, EnhancedPolicy) -> AuditReport
 
 pub fn evaluate_policy(ProjectModel, Policy) -> AuditReport
 
 pub fn format_error(GuardError) -> String
+
+pub fn is_risky_license(String) -> Bool
+
+pub fn keyword_quality(Array[String], Int) -> Bool
 
 pub fn parse_mod(String) -> Result[ModuleManifest, GuardError]
 
@@ -14,15 +34,31 @@ pub fn parse_pkg(String) -> Result[PackageManifest, GuardError]
 
 pub fn permissive_policy() -> Policy
 
+pub fn positioned_diagnostic(String, String, String, Int) -> PositionedDiagnostic
+
 pub fn project_from(ModuleManifest, Array[PackageManifest]) -> ProjectModel
+
+pub fn render_annotation(PositionedDiagnostic) -> String
+
+pub fn render_batch_summary(AuditSummary) -> String
+
+pub fn render_full_report(AuditReport) -> String
 
 pub fn render_json(AuditReport) -> String
 
 pub fn render_markdown(AuditReport) -> String
 
+pub fn render_summary(AuditReport) -> String
+
+pub fn report_from(String, String, String, String, String, Array[String], Array[Dependency]) -> AuditReport
+
 pub fn scan_project(ProjectSnapshot) -> AuditReport
 
 pub fn strict_policy() -> Policy
+
+pub fn validate_name(String) -> Bool
+
+pub fn validate_version(String) -> Bool
 
 // Errors
 
@@ -34,8 +70,16 @@ pub(all) struct AuditReport {
   dependency_count : Int
 } derive(Eq)
 
+pub(all) struct AuditSummary {
+  total_projects : Int
+  total_diagnostics : Int
+  projects_clean : Int
+  projects_risky : Int
+} derive(Eq)
+
 pub(all) struct Dependency {
   source : String
+  version : String?
   as_name : String?
 } derive(Eq)
 
@@ -44,6 +88,20 @@ pub(all) struct Diagnostic {
   message : String
   severity : String
 } derive(Eq)
+
+pub(all) struct EnhancedPolicy {
+  trust_policy : TrustPolicy
+  require_readme : Bool
+  require_repository : Bool
+  require_license : Bool
+  require_description : Bool
+  min_description_length : Int
+  require_keywords : Bool
+  min_keywords : Int
+  require_version : Bool
+  max_dependencies : Int
+} derive(Eq)
+pub fn EnhancedPolicy::default() -> Self
 
 pub(all) enum GuardError {
   UnterminatedString(Position)
@@ -81,6 +139,14 @@ pub(all) struct Position {
   column : Int
 } derive(Eq)
 
+pub(all) struct PositionedDiagnostic {
+  code : String
+  message : String
+  severity : String
+  file : String
+  line : Int
+} derive(Eq)
+
 pub(all) struct ProjectModel {
   name : String
   license : String
@@ -94,6 +160,28 @@ pub(all) struct ProjectModel {
 pub(all) struct ProjectSnapshot {
   module_manifest : ModuleManifest
   packages : Array[PackageManifest]
+} derive(Eq)
+
+pub(all) enum TrustLevel {
+  Trusted
+  Allowed
+  Blocked
+} derive(Eq)
+
+pub(all) struct TrustPolicy {
+  rules : Array[TrustRule]
+  default_level : TrustLevel
+} derive(Eq)
+pub fn TrustPolicy::allow(Self, String) -> Self
+pub fn TrustPolicy::block(Self, String) -> Self
+pub fn TrustPolicy::check(Self, String) -> TrustLevel
+pub fn TrustPolicy::default_level(Self, TrustLevel) -> Self
+pub fn TrustPolicy::new() -> Self
+pub fn TrustPolicy::trust(Self, String) -> Self
+
+pub(all) struct TrustRule {
+  prefix : String
+  level : TrustLevel
 } derive(Eq)
 
 // Type aliases

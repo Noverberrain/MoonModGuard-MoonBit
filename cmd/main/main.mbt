@@ -1,29 +1,83 @@
 ///|
-fn main {
-  let mod_text = "name = \"wyc060514/moonmodguard\"\n" +
-    "version = \"0.1.0\"\n" +
-    "readme = \"README.md\"\n" +
-    "repository = \"https://gitlink.org.cn/Wyc060514/moonmodguard\"\n" +
-    "license = \"Apache-2.0\"\n" +
-    "description = \"A MoonBit project manifest and supply-chain policy auditor.\"\n" +
-    "keywords = [ \"audit\", \"moonbit\" ]\n" +
-    "import { \"moonbitlang/x\" @x }\n" +
-    "import { \"wyc060514/lib\" @lib }"
-  let pkg_text = ""
-  match (@guard.parse_mod(mod_text), @guard.parse_pkg(pkg_text)) {
-    (Ok(module_manifest), Ok(package_manifest)) => {
-      let report = @guard.scan_project(@guard.ProjectSnapshot::{
-        module_manifest,
-        packages: [package_manifest],
-      })
-      println("MoonModGuard demo")
-      println("project=" + report.project.name)
-      println("dependencies=\{report.dependency_count}")
-      println("risks=\{report.risk_count}")
-      println("--- markdown ---")
-      println(@guard.render_markdown(report))
+fn main raise {
+  let args = @sys.get_cli_args()
+  let mut input : String? = None
+  let mut json_mode = false
+  let mut enhanced = false
+
+  let mut i = 1
+  while i < args.length() {
+    let arg = args[i]
+    if arg == "-h" || arg == "--help" {
+      print_usage()
+      return
+    } else if arg == "--json" {
+      json_mode = true
+      i = i + 1
+    } else if arg == "--enhanced" {
+      enhanced = true
+      i = i + 1
+    } else if i == args.length() - 1 && !arg.has_prefix("-") {
+      input = Some(arg)
+      i = i + 1
+    } else {
+      println("moonmodguard: unknown option: " + arg)
+      print_usage()
+      abort("")
     }
-    (Err(err), _) => println("module parse error: " + @guard.format_error(err))
-    (_, Err(err)) => println("package parse error: " + @guard.format_error(err))
   }
+
+  let mod_text = match input {
+    Some(path) => @fs.read_file_to_string(path)
+    None => {
+      println(
+        "moonmodguard: reading from stdin is not supported on this target; provide a file path",
+      )
+      print_usage()
+      abort("")
+    }
+  }
+
+  let manifest = match @guard.parse_mod(mod_text) {
+    Ok(m) => m
+    Err(err) => {
+      println("moonmodguard: parse error: " + @guard.format_error(err))
+      abort("")
+    }
+  }
+  let pkg_text = "" // single pkg not read from separate file for now
+
+  let report = match @guard.parse_pkg(pkg_text) {
+    Ok(pkg) =>
+      if enhanced {
+        let project = @guard.project_from(manifest, [pkg])
+        @guard.evaluate_enhanced(project, @guard.EnhancedPolicy::default())
+      } else {
+        @guard.scan_project(@guard.ProjectSnapshot::{
+          module_manifest: manifest,
+          packages: [pkg],
+        })
+      }
+    Err(_) =>
+      @guard.scan_project(@guard.ProjectSnapshot::{
+        module_manifest: manifest,
+        packages: [],
+      })
+  }
+
+  if json_mode {
+    println(@guard.render_json(report))
+  } else {
+    println(@guard.render_full_report(report))
+  }
+}
+
+///|
+fn print_usage() -> Unit {
+  println("Usage: moonmodguard [options] [<moon.mod>]")
+  println("")
+  println("Options:")
+  println("  --json        Output as JSON (default: Markdown)")
+  println("  --enhanced    Use EnhancedPolicy with trust grading")
+  println("  -h, --help    Show this help")
 }

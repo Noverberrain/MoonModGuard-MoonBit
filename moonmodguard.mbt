@@ -7,6 +7,7 @@ pub(all) struct Position {
 ///|
 pub(all) struct Dependency {
   source : String
+  version : String?
   as_name : String?
 } derive(Eq)
 
@@ -301,8 +302,12 @@ pub fn render_markdown(report : AuditReport) -> String {
 pub fn render_json(report : AuditReport) -> String {
   let out = StringBuilder()
   out.write_string("{\n")
-  out.write_string("  \"project\": \"" + report.project.name + "\",\n")
-  out.write_string("  \"license\": \"" + report.project.license + "\",\n")
+  out.write_string(
+    "  \"project\": \"" + escape_json(report.project.name) + "\",\n",
+  )
+  out.write_string(
+    "  \"license\": \"" + escape_json(report.project.license) + "\",\n",
+  )
   out.write_string(
     "  \"dependencies\": " + report.dependency_count.to_string() + ",\n",
   )
@@ -329,11 +334,11 @@ fn render_json_diagnostics(
   }
   let _ = out.write_string(
     "    {\"code\": \"" +
-    d.code +
+    escape_json(d.code) +
     "\", \"message\": \"" +
-    d.message +
+    escape_json(d.message) +
     "\", \"severity\": \"" +
-    d.severity +
+    escape_json(d.severity) +
     "\"}",
   )
   let _ = render_json_diagnostics(out, diags, idx + 1)
@@ -458,10 +463,11 @@ fn collect_imports(
   while cursor < chars.length() {
     if chars[cursor] == '"' {
       match read_string(chars, line, cursor) {
-        Ok((source, next)) => {
+        Ok((raw, next)) => {
           cursor = next
+          let (source, version) = parse_dep_source(raw)
           let as_name = read_as_name(chars, cursor)
-          deps.push({ source, as_name })
+          deps.push({ source, version, as_name })
         }
         Err(err) => return Err(err)
       }
@@ -470,6 +476,39 @@ fn collect_imports(
     }
   }
   Ok(deps)
+}
+
+///|
+/// Split a dependency string into source and optional version.
+///
+/// `"moonbitlang/x@0.4.46"` → `("moonbitlang/x", Some("0.4.46"))`
+/// `"acme/dep"` → `("acme/dep", None)`
+fn parse_dep_source(raw : String) -> (String, String?) {
+  let chars = raw.iter().to_array()
+  let mut last_at = -1
+  for i in 0..<chars.length() {
+    if chars[i] == '@' {
+      last_at = i
+    }
+  }
+  if last_at > 0 {
+    let after = raw[last_at + 1:raw.length()].to_owned()
+    if looks_like_version(after) {
+      return (raw[0:last_at].to_owned(), Some(after))
+    }
+  }
+  (raw, None)
+}
+
+///|
+/// Quick check: does the string look like a version fragment (contains a digit)?
+fn looks_like_version(s : String) -> Bool {
+  for c in s {
+    if c >= '0' && c <= '9' {
+      return true
+    }
+  }
+  false
 }
 
 ///|
@@ -665,21 +704,125 @@ pub fn audit_snapshot(
 }
 
 ///|
-/// Validate a version string against basic semver rules.
+/// Validate a version string against full semver rules.
+///
+/// Supports: `MAJOR.MINOR.PATCH[-prerelease][+build]`
 pub fn validate_version(version : String) -> Bool {
-  let parts = version.split(".").to_array()
-  if parts.length() < 2 || parts.length() > 4 {
+  validate_semver(version)
+}
+
+///|
+fn validate_semver(version : String) -> Bool {
+  let v = version
+  if v.length() == 0 {
+    return false
+  }
+  // Strip build metadata
+  let core_and_pre = match v.split_once("+") {
+    Some((core, build)) => {
+      if build.length() == 0 {
+        return false
+      }
+      core.to_owned()
+    }
+    None => v
+  }
+  // Split prerelease
+  let core = match core_and_pre.split_once("-") {
+    Some((c, pre)) => {
+      let pre_s = pre.to_owned()
+      if pre_s.length() == 0 || !is_valid_prerelease(pre_s) {
+        return false
+      }
+      c.to_owned()
+    }
+    None => core_and_pre
+  }
+  // Core: MAJOR.MINOR.PATCH
+  let parts = core.split(".").to_array()
+  if parts.length() != 3 {
     return false
   }
   for part in parts {
-    let len = part.length()
-    if len == 0 {
+    if !is_non_negative_int(part.to_owned()) {
       return false
     }
   }
-  // Check first character of first part is a digit
-  let first = parts[0]
-  first.length() > 0 && first[0] >= '0' && first[0] <= '9'
+  // Leading zero check
+  for part in parts {
+    if part.length() > 1 && part[0] == '0' {
+      return false
+    }
+  }
+  true
+}
+
+///|
+fn is_non_negative_int(s : String) -> Bool {
+  if s.length() == 0 {
+    return false
+  }
+  for c in s {
+    if c < '0' || c > '9' {
+      return false
+    }
+  }
+  true
+}
+
+///|
+fn is_valid_prerelease(s : String) -> Bool {
+  if s.length() == 0 {
+    return false
+  }
+  for part in s.split(".") {
+    let part_str = part.to_owned()
+    if part_str.length() == 0 {
+      return false
+    }
+    for c in part_str {
+      if !((c >= '0' && c <= '9') ||
+        (c >= 'a' && c <= 'z') ||
+        (c >= 'A' && c <= 'Z') ||
+        c == '-') {
+        return false
+      }
+    }
+  }
+  true
+}
+
+///|
+fn escape_json(s : String) -> String {
+  let out = StringBuilder()
+  for c in s {
+    match c {
+      '"' => out.write_string("\\\"")
+      '\\' => out.write_string("\\\\")
+      '\n' => out.write_string("\\n")
+      '\r' => out.write_string("\\r")
+      '\t' => out.write_string("\\t")
+      _ =>
+        if c.to_int() < 0x20 {
+          out.write_string("\\u" + pad_hex(c.to_int(), 4))
+        } else {
+          out.write_char(c)
+        }
+    }
+  }
+  out.to_string()
+}
+
+///|
+fn pad_hex(value : Int, width : Int) -> String {
+  let hex = "0123456789abcdef"
+  let mut result = ""
+  let mut v = value
+  for _ in 0..<width {
+    result = hex[v % 16].to_string() + result
+    v = v / 16
+  }
+  result
 }
 
 ///|
@@ -710,6 +853,66 @@ pub fn check_unused_dependency(
           "dependency \{dep.source} is declared but not imported by any package",
         ),
       )
+    }
+  }
+  diagnostics
+}
+
+///|
+/// Check that every package-level import has a corresponding versioned module dependency.
+pub fn check_missing_versioned_dep(
+  manifest : ModuleManifest,
+  packages : Array[PackageManifest],
+) -> Array[Diagnostic] {
+  let diagnostics : Array[Diagnostic] = []
+  let versioned : Array[(String, String)] = []
+  for dep in manifest.imports {
+    match dep.version {
+      Some(v) => versioned.push((dep.source, v))
+      None => ()
+    }
+  }
+  for pkg in packages {
+    for dep in pkg.imports {
+      let mut found = false
+      for i in 0..<versioned.length() {
+        let (src, _v) = versioned[i]
+        if src == dep.source {
+          found = true
+          break
+        }
+      }
+      if !found {
+        diagnostics.push(
+          diagnostic(
+            "version-mismatch",
+            "package import \{dep.source} has no versioned module dependency",
+          ),
+        )
+      }
+    }
+  }
+  diagnostics
+}
+
+///|
+/// Check that versioned module dependencies match the versions actually imported.
+pub fn check_version_consistency(
+  manifest : ModuleManifest,
+) -> Array[Diagnostic] {
+  let diagnostics : Array[Diagnostic] = []
+  for dep in manifest.imports {
+    match dep.version {
+      Some(v) =>
+        if !validate_version(v) {
+          diagnostics.push(
+            diagnostic(
+              "invalid-version",
+              "dependency \{dep.source} has invalid version \{v}",
+            ),
+          )
+        }
+      None => ()
     }
   }
   diagnostics
