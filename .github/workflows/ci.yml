@@ -12,11 +12,15 @@ jobs:
         run: curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
       - name: Add MoonBit to PATH
         run: echo "$HOME/.moon/bin" >> $GITHUB_PATH
+      - name: Update Registry
+        run: moon update
       - name: Moon Info
         run: moon info
       - name: Moon Check
         run: moon check
       - name: Moon Format Check
         run: moon fmt --check
+      - name: Moon Build
+        run: moon build
       - name: Moon Test
         run: moon test
