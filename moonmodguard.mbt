@@ -1285,3 +1285,335 @@ pub fn render_batch_summary(summary : AuditSummary) -> String {
   out.write_string("| Total diagnostics | \{summary.total_diagnostics} |\n")
   out.to_string()
 }
+
+// ------- SARIF Renderer -------
+
+///|
+/// Render an audit report as SARIF v2.1.0 JSON for GitHub Code Scanning.
+pub fn render_sarif(report : AuditReport, tool_name : String) -> String {
+  let out = StringBuilder()
+  out.write_string("{\n")
+  out.write_string(
+    "  \"" +
+    "$schema" +
+    "\": \"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json\",\n",
+  )
+  out.write_string("  \"version\": \"2.1.0\",\n")
+  out.write_string("  \"runs\": [{\n")
+  out.write_string("    \"tool\": {\n")
+  out.write_string("      \"driver\": {\n")
+  out.write_string("        \"name\": \"" + escape_json(tool_name) + "\",\n")
+  out.write_string(
+    "        \"informationUri\": \"https://github.com/Noverberrain/MoonModGuard-MoonBit\",\n",
+  )
+  out.write_string("        \"rules\": [\n")
+  render_sarif_rules(out)
+  out.write_string("        ]\n")
+  out.write_string("      }\n")
+  out.write_string("    },\n")
+  out.write_string("    \"results\": [\n")
+  for i in 0..<report.diagnostics.length() {
+    if i > 0 {
+      out.write_string(",\n")
+    }
+    let d = report.diagnostics[i]
+    out.write_string("      {\n")
+    out.write_string("        \"ruleId\": \"" + escape_json(d.code) + "\",\n")
+    out.write_string(
+      "        \"level\": \"" + sarif_level(d.severity) + "\",\n",
+    )
+    out.write_string("        \"message\": {\n")
+    out.write_string("          \"text\": \"" + escape_json(d.message) + "\"\n")
+    out.write_string("        }\n")
+    out.write_string("      }")
+  }
+  out.write_string("\n    ]\n")
+  out.write_string("  }]\n")
+  out.write_string("}\n")
+  out.to_string()
+}
+
+///|
+fn render_sarif_rules(out : StringBuilder) -> Unit {
+  let rules = [
+    ("missing-readme", "README is not declared"),
+    ("missing-repository", "repository is not declared"),
+    ("missing-license", "license is not declared"),
+    ("license-not-allowed", "license is outside the allowed policy"),
+    ("description-too-short", "description is too short"),
+    ("missing-keywords", "insufficient keywords"),
+    ("duplicate-dependency", "dependency is duplicated"),
+    ("unknown-dependency", "dependency is not trusted"),
+    ("blocked-dependency", "dependency is blocked by trust policy"),
+    ("too-many-dependencies", "too many dependencies"),
+    ("unused-dependency", "dependency is unused"),
+    ("version-mismatch", "package import has no versioned module dependency"),
+    ("invalid-version", "dependency has invalid version"),
+  ]
+  for i in 0..<rules.length() {
+    if i > 0 {
+      out.write_string(",\n")
+    }
+    let (id, desc) = rules[i]
+    out.write_string("          {\n")
+    out.write_string("            \"id\": \"" + id + "\",\n")
+    out.write_string(
+      "            \"shortDescription\": {\"text\": \"" +
+      escape_json(desc) +
+      "\"}\n",
+    )
+    out.write_string("          }")
+  }
+}
+
+///|
+fn sarif_level(severity : String) -> String {
+  if severity == "error" {
+    "error"
+  } else if severity == "warning" {
+    "warning"
+  } else {
+    "note"
+  }
+}
+
+// ------- mooncake.yaml Consistency Check -------
+
+///|
+/// Parsed fields from a mooncake.yaml file.
+pub(all) struct MooncakeManifest {
+  name : String
+  version : String
+  description : String
+  repository : String
+  license : String
+  keywords : Array[String]
+} derive(Eq)
+
+///|
+/// Parse a mooncake.yaml text into a MooncakeManifest.
+pub fn parse_mooncake(input : String) -> Result[MooncakeManifest, GuardError] {
+  let name = match string_field_yaml(input, "name") {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
+  let version = match string_field_yaml(input, "version") {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
+  let description = match string_field_yaml(input, "description") {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
+  let repository = match string_field_yaml(input, "repository") {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
+  let license = match string_field_yaml(input, "license") {
+    Ok(value) => value
+    Err(err) => return Err(err)
+  }
+  let keywords = match array_field_yaml(input, "keywords") {
+    Ok(values) => values
+    Err(err) => return Err(err)
+  }
+  Ok({ name, version, description, repository, license, keywords })
+}
+
+///|
+/// Read a scalar value from YAML-style `key: value` pairs.
+fn string_field_yaml(
+  input : String,
+  key : String,
+) -> Result[String, GuardError] {
+  let lines = input.split("\n").to_array()
+  for i in 0..<lines.length() {
+    let line = lines[i].to_owned()
+    let trimmed = trim_left(line)
+    if trimmed.has_prefix(key + ":") {
+      let rest = trimmed[key.length() + 1:trimmed.length()].to_owned()
+      return Ok(trim_right(trim_left(rest)))
+    }
+  }
+  Ok("")
+}
+
+///|
+/// Read an array from YAML-style `key: [ "v1", "v2" ]`.
+fn array_field_yaml(
+  input : String,
+  key : String,
+) -> Result[Array[String], GuardError] {
+  let values : Array[String] = []
+  let lines = input.split("\n").to_array()
+  for i in 0..<lines.length() {
+    let line = lines[i].to_owned()
+    let trimmed = trim_left(line)
+    if trimmed.has_prefix(key + ":") {
+      let rest = trimmed[key.length() + 1:trimmed.length()].to_owned()
+      let inside = trim_left(rest)
+      if inside.has_prefix("[") && inside.has_suffix("]") {
+        let content = inside[1:inside.length() - 1].to_owned()
+        for part in content.split(",") {
+          let s = trim_right(trim_left(part.to_owned()))
+          if s.has_prefix("\"") && s.has_suffix("\"") {
+            values.push(s[1:s.length() - 1].to_owned())
+          }
+        }
+      }
+      return Ok(values)
+    }
+  }
+  Ok(values)
+}
+
+///|
+fn trim_left(s : String) -> String {
+  let mut i = 0
+  while i < s.length() && (s[i] == ' ' || s[i] == '\t') {
+    i = i + 1
+  }
+  s[i:s.length()].to_owned()
+}
+
+///|
+fn trim_right(s : String) -> String {
+  let mut i = s.length()
+  while i > 0 && (s[i - 1] == ' ' || s[i - 1] == '\t') {
+    i = i - 1
+  }
+  s[0:i].to_owned()
+}
+
+///|
+/// Check consistency between moon.mod and mooncake.yaml manifests.
+pub fn check_mooncake_consistency(
+  mod_manifest : ModuleManifest,
+  mooncake : MooncakeManifest,
+) -> Array[Diagnostic] {
+  let diagnostics : Array[Diagnostic] = []
+  if mod_manifest.name != mooncake.name {
+    diagnostics.push(
+      diagnostic(
+        "mooncake-name-mismatch",
+        "moon.mod name '\{mod_manifest.name}' != mooncake.yaml name '\{mooncake.name}'",
+      ),
+    )
+  }
+  if mod_manifest.version != mooncake.version {
+    diagnostics.push(
+      diagnostic(
+        "mooncake-version-mismatch",
+        "moon.mod version '\{mod_manifest.version}' != mooncake.yaml version '\{mooncake.version}'",
+      ),
+    )
+  }
+  if mod_manifest.license != mooncake.license {
+    diagnostics.push(
+      diagnostic(
+        "mooncake-license-mismatch",
+        "moon.mod license '\{mod_manifest.license}' != mooncake.yaml license '\{mooncake.license}'",
+      ),
+    )
+  }
+  if mod_manifest.repository != mooncake.repository {
+    diagnostics.push(
+      diagnostic(
+        "mooncake-repository-mismatch",
+        "moon.mod repository '\{mod_manifest.repository}' != mooncake.yaml repository '\{mooncake.repository}'",
+      ),
+    )
+  }
+  diagnostics
+}
+
+// ------- Workspace Scanner -------
+
+///|
+/// A discovered MoonBit package in a workspace.
+pub(all) struct DiscoveredPackage {
+  dir : String
+  mod_text : String
+  pkg_text : String
+  mooncake_text : String?
+} derive(Eq)
+
+///|
+/// Recursively discover MoonBit packages under a root directory.
+///
+/// Returns an array of DiscoveredPackage, one per directory that contains
+/// a `moon.mod` or `moon.pkg` file. Directories named `_build`, `.mooncakes`,
+/// `.git`, and `target` are skipped.
+pub fn discover_packages(root : String) -> Array[DiscoveredPackage] raise {
+  let packages : Array[DiscoveredPackage] = []
+  discover_rec(root, packages)
+  packages
+}
+
+///|
+fn discover_rec(
+  dir : String,
+  packages : Array[DiscoveredPackage],
+) -> Unit raise {
+  let skip = ["_build", ".mooncakes", ".git", "target", ".moon"]
+  for s in skip {
+    if dir.has_suffix("/" + s) || dir.has_suffix("\\" + s) || dir == s {
+      return
+    }
+  }
+  let dir_name = if dir.has_suffix("/") || dir.has_suffix("\\") {
+    dir
+  } else {
+    dir + "/"
+  }
+  let mut mod_text : String? = None
+  let mut pkg_text : String? = None
+  let mut mooncake_text : String? = None
+  let entries = @fs.read_dir(dir)
+  for entry in entries {
+    let full = dir_name + entry
+    if @fs.is_file(full) {
+      if entry == "moon.mod" {
+        mod_text = Some(@fs.read_file_to_string(full))
+      } else if entry == "moon.pkg" {
+        pkg_text = Some(@fs.read_file_to_string(full))
+      } else if entry == "mooncake.yaml" {
+        mooncake_text = Some(@fs.read_file_to_string(full))
+      }
+    } else if @fs.is_dir(full) {
+      discover_rec(full, packages)
+    }
+  }
+  if mod_text is Some(_) || pkg_text is Some(_) {
+    packages.push({
+      dir: dir_name,
+      mod_text: mod_text.unwrap_or_default(),
+      pkg_text: pkg_text.unwrap_or_default(),
+      mooncake_text,
+    })
+  }
+}
+
+///|
+/// Batch-audit all packages discovered under a root directory.
+pub fn audit_workspace(root : String) -> AuditSummary raise {
+  let packages = discover_packages(root)
+  let snapshots : Array[ProjectSnapshot] = []
+  for pkg in packages {
+    match parse_mod(pkg.mod_text) {
+      Ok(mod_manifest) => {
+        let pkg_manifests : Array[PackageManifest] = []
+        match parse_pkg(pkg.pkg_text) {
+          Ok(pm) => pkg_manifests.push(pm)
+          Err(_) => ()
+        }
+        snapshots.push(ProjectSnapshot::{
+          module_manifest: mod_manifest,
+          packages: pkg_manifests,
+        })
+      }
+      Err(_) => ()
+    }
+  }
+  batch_audit(snapshots)
+}

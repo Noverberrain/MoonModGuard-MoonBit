@@ -6,9 +6,13 @@ pub fn audit_policy(ProjectModel, Policy) -> AuditReport
 
 pub fn audit_snapshot(String, Array[String]) -> Result[AuditReport, GuardError]
 
+pub fn audit_workspace(String) -> AuditSummary raise
+
 pub fn batch_audit(Array[ProjectSnapshot]) -> AuditSummary
 
 pub fn check_missing_versioned_dep(ModuleManifest, Array[PackageManifest]) -> Array[Diagnostic]
+
+pub fn check_mooncake_consistency(ModuleManifest, MooncakeManifest) -> Array[Diagnostic]
 
 pub fn check_unused_dependency(ModuleManifest, Array[PackageManifest]) -> Array[Diagnostic]
 
@@ -17,6 +21,8 @@ pub fn check_version_consistency(ModuleManifest) -> Array[Diagnostic]
 pub fn count_by_severity(Array[Diagnostic], String) -> Int
 
 pub fn default_policy() -> Policy
+
+pub fn discover_packages(String) -> Array[DiscoveredPackage] raise
 
 pub fn evaluate_enhanced(ProjectModel, EnhancedPolicy) -> AuditReport
 
@@ -29,6 +35,8 @@ pub fn is_risky_license(String) -> Bool
 pub fn keyword_quality(Array[String], Int) -> Bool
 
 pub fn parse_mod(String) -> Result[ModuleManifest, GuardError]
+
+pub fn parse_mooncake(String) -> Result[MooncakeManifest, GuardError]
 
 pub fn parse_pkg(String) -> Result[PackageManifest, GuardError]
 
@@ -47,6 +55,8 @@ pub fn render_full_report(AuditReport) -> String
 pub fn render_json(AuditReport) -> String
 
 pub fn render_markdown(AuditReport) -> String
+
+pub fn render_sarif(AuditReport, String) -> String
 
 pub fn render_summary(AuditReport) -> String
 
@@ -89,6 +99,13 @@ pub(all) struct Diagnostic {
   severity : String
 } derive(Eq)
 
+pub(all) struct DiscoveredPackage {
+  dir : String
+  mod_text : String
+  pkg_text : String
+  mooncake_text : String?
+} derive(Eq)
+
 pub(all) struct EnhancedPolicy {
   trust_policy : TrustPolicy
   require_readme : Bool
@@ -116,6 +133,15 @@ pub(all) struct ModuleManifest {
   keywords : Array[String]
   description : String
   imports : Array[Dependency]
+} derive(Eq)
+
+pub(all) struct MooncakeManifest {
+  name : String
+  version : String
+  description : String
+  repository : String
+  license : String
+  keywords : Array[String]
 } derive(Eq)
 
 pub(all) struct PackageManifest {

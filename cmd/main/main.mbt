@@ -4,6 +4,8 @@ fn main raise {
   let mut input : String? = None
   let mut json_mode = false
   let mut enhanced = false
+  let mut sarif = false
+  let mut workspace = false
 
   let mut i = 1
   while i < args.length() {
@@ -17,7 +19,13 @@ fn main raise {
     } else if arg == "--enhanced" {
       enhanced = true
       i = i + 1
-    } else if i == args.length() - 1 && !arg.has_prefix("-") {
+    } else if arg == "--sarif" {
+      sarif = true
+      i = i + 1
+    } else if arg == "--workspace" || arg == "-w" {
+      workspace = true
+      i = i + 1
+    } else if !arg.has_prefix("-") {
       input = Some(arg)
       i = i + 1
     } else {
@@ -27,26 +35,35 @@ fn main raise {
     }
   }
 
-  let mod_text = match input {
-    Some(path) => @fs.read_file_to_string(path)
+  if workspace {
+    let root = match input {
+      Some(dir) => dir
+      None => "."
+    }
+    let summary = @guard.audit_workspace(root)
+    println(@guard.render_batch_summary(summary))
+    return
+  }
+
+  let path = match input {
+    Some(p) => p
     None => {
       println(
-        "moonmodguard: reading from stdin is not supported on this target; provide a file path",
+        "moonmodguard: provide a moon.mod file path or --workspace for batch audit",
       )
       print_usage()
       abort("")
     }
   }
 
-  let manifest = match @guard.parse_mod(mod_text) {
+  let manifest = match @guard.parse_mod(@fs.read_file_to_string(path)) {
     Ok(m) => m
     Err(err) => {
       println("moonmodguard: parse error: " + @guard.format_error(err))
       abort("")
     }
   }
-  let pkg_text = "" // single pkg not read from separate file for now
-
+  let pkg_text = ""
   let report = match @guard.parse_pkg(pkg_text) {
     Ok(pkg) =>
       if enhanced {
@@ -65,7 +82,9 @@ fn main raise {
       })
   }
 
-  if json_mode {
+  if sarif {
+    println(@guard.render_sarif(report, "MoonModGuard"))
+  } else if json_mode {
     println(@guard.render_json(report))
   } else {
     println(@guard.render_full_report(report))
@@ -75,9 +94,13 @@ fn main raise {
 ///|
 fn print_usage() -> Unit {
   println("Usage: moonmodguard [options] [<moon.mod>]")
+  println("       moonmodguard --workspace [<directory>]")
   println("")
   println("Options:")
   println("  --json        Output as JSON (default: Markdown)")
+  println("  --sarif       Output as SARIF v2.1.0")
   println("  --enhanced    Use EnhancedPolicy with trust grading")
+  println("  --workspace   Recursively audit all packages under a directory")
+  println("  -w            Short for --workspace")
   println("  -h, --help    Show this help")
 }

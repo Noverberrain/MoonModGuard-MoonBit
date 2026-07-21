@@ -542,3 +542,132 @@ test "validate_version strict semver" {
   assert_false(@moonmodguard.validate_version("1.0.0-"))
   assert_false(@moonmodguard.validate_version("1.0.0+"))
 }
+
+// ---- SARIF rendering ----
+
+///|
+test "render_sarif produces valid structure" {
+  let project = @moonmodguard.ProjectModel::{
+    name: "test/proj",
+    license: "MIT",
+    readme: "R.md",
+    repository: "r",
+    description: "d",
+    keywords: [],
+    dependencies: [],
+  }
+  let report = @moonmodguard.AuditReport::{
+    project,
+    diagnostics: [
+      @moonmodguard.Diagnostic::{
+        code: "missing-readme",
+        message: "README is not declared",
+        severity: "error",
+      },
+    ],
+    risk_count: 1,
+    dependency_count: 0,
+  }
+  let sarif = @moonmodguard.render_sarif(report, "MoonModGuard")
+  assert_true(sarif.has_prefix("{"))
+  assert_true(sarif.contains("\"version\": \"2.1.0\""))
+  assert_true(sarif.contains("missing-readme"))
+  assert_true(sarif.contains("\"level\": \"error\""))
+}
+
+///|
+test "render_sarif empty diagnostics" {
+  let project = @moonmodguard.ProjectModel::{
+    name: "test/proj",
+    license: "Apache-2.0",
+    readme: "R.md",
+    repository: "r",
+    description: "d",
+    keywords: [],
+    dependencies: [],
+  }
+  let report = @moonmodguard.AuditReport::{
+    project,
+    diagnostics: [],
+    risk_count: 0,
+    dependency_count: 0,
+  }
+  let sarif = @moonmodguard.render_sarif(report, "TestTool")
+  assert_true(sarif.has_prefix("{"))
+  assert_true(sarif.contains("\"results\": ["))
+}
+
+// ---- mooncake.yaml consistency ----
+
+///|
+test "parse_mooncake extracts fields" {
+  let yaml = "name: moonmodguard\nversion: 0.2.0\ndescription: A test\nrepository: https://r.test\nlicense: Apache-2.0\nkeywords: [ \"audit\", \"moonbit\" ]"
+  match @moonmodguard.parse_mooncake(yaml) {
+    Ok(m) => {
+      assert_eq(m.name, "moonmodguard")
+      assert_eq(m.version, "0.2.0")
+      assert_eq(m.license, "Apache-2.0")
+      assert_eq(m.keywords.length(), 2)
+    }
+    Err(_) => abort("unexpected parse error")
+  }
+}
+
+///|
+test "check_mooncake_consistency detects mismatches" {
+  let mod_manifest = mod_ok(
+    "name = \"Noverberrain/tool\"\nversion = \"0.2.0\"\nlicense = \"MIT\"\nrepository = \"https://github.test/repo\"",
+  )
+  let mooncake = @moonmodguard.MooncakeManifest::{
+    name: "Noverberrain/tool",
+    version: "0.1.0",
+    description: "",
+    repository: "https://gitlink.test/repo",
+    license: "Apache-2.0",
+    keywords: [],
+  }
+  let diags = @moonmodguard.check_mooncake_consistency(mod_manifest, mooncake)
+  assert_eq(diags.length(), 3)
+  assert_eq(diags[0].code, "mooncake-version-mismatch")
+  assert_eq(diags[1].code, "mooncake-license-mismatch")
+  assert_eq(diags[2].code, "mooncake-repository-mismatch")
+}
+
+///|
+test "check_mooncake_consistency all match" {
+  let mod_manifest = mod_ok(
+    "name = \"wyc/tool\"\nversion = \"1.0.0\"\nlicense = \"MIT\"\nrepository = \"https://r.test\"",
+  )
+  let mooncake = @moonmodguard.MooncakeManifest::{
+    name: "wyc/tool",
+    version: "1.0.0",
+    description: "",
+    repository: "https://r.test",
+    license: "MIT",
+    keywords: [],
+  }
+  let diags = @moonmodguard.check_mooncake_consistency(mod_manifest, mooncake)
+  assert_eq(diags.length(), 0)
+}
+
+// ---- workspace scanning ----
+
+///|
+test "discover_packages finds current project" {
+  let pkgs = @moonmodguard.discover_packages(".")
+  assert_true(pkgs.length() > 0)
+  let mut found = false
+  for p in pkgs {
+    if p.mod_text.contains("Noverberrain/moonmodguard") {
+      found = true
+      break
+    }
+  }
+  assert_true(found)
+}
+
+///|
+test "audit_workspace returns summary" {
+  let summary = @moonmodguard.audit_workspace(".")
+  assert_true(summary.total_projects > 0)
+}
