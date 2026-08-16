@@ -14,7 +14,11 @@ pub fn check_missing_versioned_dep(ModuleManifest, Array[PackageManifest]) -> Ar
 
 pub fn check_mooncake_consistency(ModuleManifest, MooncakeManifest) -> Array[Diagnostic]
 
+pub fn check_self_dependency(ModuleManifest) -> Array[Diagnostic]
+
 pub fn check_unused_dependency(ModuleManifest, Array[PackageManifest]) -> Array[Diagnostic]
+
+pub fn check_version_conflicts(ModuleManifest, Array[PackageManifest]) -> Array[Diagnostic]
 
 pub fn check_version_consistency(ModuleManifest) -> Array[Diagnostic]
 

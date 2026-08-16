@@ -947,6 +947,92 @@ pub fn check_version_consistency(
 }
 
 ///|
+/// Check for version conflicts: the same dependency source declared with
+/// two or more different versions across the module and its packages.
+pub fn check_version_conflicts(
+  manifest : ModuleManifest,
+  packages : Array[PackageManifest],
+) -> Array[Diagnostic] {
+  let diagnostics : Array[Diagnostic] = []
+  let seen : Array[(String, String)] = []
+  let reported : Array[String] = []
+
+  let mut i = 0
+  while i < manifest.imports.length() {
+    let dep = manifest.imports[i]
+    match dep.version {
+      Some(v) => {
+        if has_conflicting_version(seen, dep.source, v) &&
+          !contains_string(reported, dep.source) {
+          diagnostics.push(
+            diagnostic(
+              "version-conflict",
+              "dependency \{dep.source} is declared with multiple conflicting versions",
+            ),
+          )
+          reported.push(dep.source)
+        }
+        seen.push((dep.source, v))
+      }
+      None => ()
+    }
+    i = i + 1
+  }
+
+  for pkg in packages {
+    for dep in pkg.imports {
+      match dep.version {
+        Some(v) => {
+          if has_conflicting_version(seen, dep.source, v) &&
+            !contains_string(reported, dep.source) {
+            diagnostics.push(
+              diagnostic(
+                "version-conflict",
+                "dependency \{dep.source} is declared with multiple conflicting versions",
+              ),
+            )
+            reported.push(dep.source)
+          }
+          seen.push((dep.source, v))
+        }
+        None => ()
+      }
+    }
+  }
+
+  diagnostics
+}
+
+///|
+fn has_conflicting_version(
+  seen : Array[(String, String)],
+  source : String,
+  version : String,
+) -> Bool {
+  for i in 0..<seen.length() {
+    let (s, v) = seen[i]
+    if s == source && v != version {
+      return true
+    }
+  }
+  false
+}
+
+///|
+/// Check for self-dependency: the module declares a dependency on its own name.
+pub fn check_self_dependency(manifest : ModuleManifest) -> Array[Diagnostic] {
+  let diagnostics : Array[Diagnostic] = []
+  for dep in manifest.imports {
+    if dep.source == manifest.name {
+      diagnostics.push(
+        diagnostic("self-dependency", "module depends on itself: \{dep.source}"),
+      )
+    }
+  }
+  diagnostics
+}
+
+///|
 /// Build a report from explicit fields (no parsing needed).
 pub fn report_from(
   name : String,

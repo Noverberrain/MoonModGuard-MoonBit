@@ -763,3 +763,53 @@ test "check_mooncake_consistency flags keyword and description mismatch" {
   assert_true(has_desc)
   assert_true(has_kw)
 }
+
+///|
+test "check_version_conflicts detects conflicting versions" {
+  let manifest = mod_ok(
+    "name = \"wyc/tool\"\nversion = \"0.1.0\"\nimport { \"moonbitlang/x@0.4.45\" @x }",
+  )
+  let pkg = pkg_ok("import { \"moonbitlang/x@0.4.46\" @x }")
+  let diags = @moonmodguard.check_version_conflicts(manifest, [pkg])
+  assert_eq(diags.length(), 1)
+  assert_eq(diags[0].code, "version-conflict")
+}
+
+///|
+test "check_version_conflicts ignores same version" {
+  let manifest = mod_ok(
+    "name = \"wyc/tool\"\nversion = \"0.1.0\"\nimport { \"moonbitlang/x@0.4.46\" @x }",
+  )
+  let pkg = pkg_ok("import { \"moonbitlang/x@0.4.46\" @x }")
+  let diags = @moonmodguard.check_version_conflicts(manifest, [pkg])
+  assert_eq(diags.length(), 0)
+}
+
+///|
+test "check_version_conflicts ignores unversioned deps" {
+  let manifest = mod_ok(
+    "name = \"wyc/tool\"\nversion = \"0.1.0\"\nimport { \"moonbitlang/x\" @x }",
+  )
+  let pkg = pkg_ok("import { \"moonbitlang/x\" @x }")
+  let diags = @moonmodguard.check_version_conflicts(manifest, [pkg])
+  assert_eq(diags.length(), 0)
+}
+
+///|
+test "check_self_dependency detects self-reference" {
+  let manifest = mod_ok(
+    "name = \"wyc/tool\"\nversion = \"0.1.0\"\nimport { \"wyc/tool\" @self }",
+  )
+  let diags = @moonmodguard.check_self_dependency(manifest)
+  assert_eq(diags.length(), 1)
+  assert_eq(diags[0].code, "self-dependency")
+}
+
+///|
+test "check_self_dependency no self-reference" {
+  let manifest = mod_ok(
+    "name = \"wyc/tool\"\nversion = \"0.1.0\"\nimport { \"moonbitlang/x\" @x }",
+  )
+  let diags = @moonmodguard.check_self_dependency(manifest)
+  assert_eq(diags.length(), 0)
+}
