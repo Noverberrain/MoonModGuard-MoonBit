@@ -207,13 +207,46 @@ let mooncake = match @moonmodguard.parse_mooncake(yaml_text) {
   Err(_) => abort("parse error")
 }
 let diags = @moonmodguard.check_mooncake_consistency(mod_manifest, mooncake)
-// Reports mismatches between moon.mod and mooncake.yaml
+// Reports name/version/license/repository/description/keywords mismatches
+```
+
+### Full Audit & Dependency Analysis
+
+`full_audit` runs the base policy plus every dependency check in one report:
+
+```mbt nocheck
+let report = @moonmodguard.full_audit(manifest, packages)
+// Combines evaluate_policy with:
+//   check_unused_dependency, check_missing_versioned_dep,
+//   check_version_consistency, check_version_conflicts,
+//   check_self_dependency
+```
+
+Version conflict and self-dependency detection:
+
+```mbt nocheck
+// Same source declared with two versions -> "version-conflict"
+let conflicts = @moonmodguard.check_version_conflicts(manifest, packages)
+
+// Module imports its own name -> "self-dependency"
+let self = @moonmodguard.check_self_dependency(manifest)
+```
+
+Repository URL validation:
+
+```mbt nocheck
+@moonmodguard.is_valid_repository_url("https://github.com/a/b") // true
+@moonmodguard.is_valid_repository_url("not-a-url")              // false
 ```
 
 Public API additions:
 
 - `check_missing_versioned_dep(manifest, packages) -> Array[Diagnostic]`
 - `check_version_consistency(manifest) -> Array[Diagnostic]`
+- `check_version_conflicts(manifest, packages) -> Array[Diagnostic]`
+- `check_self_dependency(manifest) -> Array[Diagnostic]`
+- `full_audit(manifest, packages) -> AuditReport`
+- `is_valid_repository_url(repository) -> Bool`
 - `evaluate_enhanced(project, policy) -> AuditReport`
 - `render_json(report) -> String`
 - `render_full_report(report) -> String`

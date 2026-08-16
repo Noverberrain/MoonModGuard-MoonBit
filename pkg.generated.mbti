@@ -34,6 +34,8 @@ pub fn evaluate_policy(ProjectModel, Policy) -> AuditReport
 
 pub fn format_error(GuardError) -> String
 
+pub fn full_audit(ModuleManifest, Array[PackageManifest]) -> AuditReport
+
 pub fn is_risky_license(String) -> Bool
 
 pub fn is_valid_repository_url(String) -> Bool

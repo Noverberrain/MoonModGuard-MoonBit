@@ -813,3 +813,23 @@ test "check_self_dependency no self-reference" {
   let diags = @moonmodguard.check_self_dependency(manifest)
   assert_eq(diags.length(), 0)
 }
+
+///|
+test "full_audit merges base policy and dependency checks" {
+  let manifest = mod_ok(
+    "name = \"wyc/tool\"\nversion = \"not-semver\"\nreadme = \"R.md\"\nrepository = \"not-a-url\"\nlicense = \"GPL-3.0\"\ndescription = \"a useful tool for MoonBit\"\nkeywords = [\"audit\"]\nimport { \"unused-dep@0.1.0\" @u }\nimport { \"moonbitlang/x@0.4.45\" @x }",
+  )
+  let pkg = pkg_ok("import { \"moonbitlang/x@0.4.46\" @x }")
+  let report = @moonmodguard.full_audit(manifest, [pkg])
+  // Should surface invalid-version, invalid-repository, license-not-allowed,
+  // unused-dependency, version-conflict from the merged checks
+  let codes : Array[String] = []
+  for d in report.diagnostics {
+    codes.push(d.code)
+  }
+  assert_true(codes.contains("invalid-version"))
+  assert_true(codes.contains("invalid-repository"))
+  assert_true(codes.contains("license-not-allowed"))
+  assert_true(codes.contains("unused-dependency"))
+  assert_true(codes.contains("version-conflict"))
+}

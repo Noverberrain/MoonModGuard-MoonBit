@@ -74,16 +74,9 @@ fn main raise {
         let project = @guard.project_from(manifest, [pkg])
         @guard.evaluate_enhanced(project, @guard.EnhancedPolicy::default())
       } else {
-        @guard.scan_project(@guard.ProjectSnapshot::{
-          module_manifest: manifest,
-          packages: [pkg],
-        })
+        @guard.full_audit(manifest, [pkg])
       }
-    Err(_) =>
-      @guard.scan_project(@guard.ProjectSnapshot::{
-        module_manifest: manifest,
-        packages: [],
-      })
+    Err(_) => @guard.full_audit(manifest, [])
   }
 
   if annotations {

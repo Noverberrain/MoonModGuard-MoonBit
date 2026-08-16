@@ -224,6 +224,43 @@ pub fn scan_project(snapshot : ProjectSnapshot) -> AuditReport {
 }
 
 ///|
+/// Run a full audit: base policy plus every dependency and metadata check.
+///
+/// Combines `evaluate_policy` with the standalone dependency checks
+/// (`check_unused_dependency`, `check_missing_versioned_dep`,
+/// `check_version_consistency`, `check_version_conflicts`,
+/// `check_self_dependency`) into a single report.
+pub fn full_audit(
+  manifest : ModuleManifest,
+  packages : Array[PackageManifest],
+) -> AuditReport {
+  let report = scan_project(ProjectSnapshot::{
+    module_manifest: manifest,
+    packages,
+  })
+  let diagnostics = report.diagnostics
+  append_diagnostics(diagnostics, check_unused_dependency(manifest, packages))
+  append_diagnostics(
+    diagnostics,
+    check_missing_versioned_dep(manifest, packages),
+  )
+  append_diagnostics(diagnostics, check_version_consistency(manifest))
+  append_diagnostics(diagnostics, check_version_conflicts(manifest, packages))
+  append_diagnostics(diagnostics, check_self_dependency(manifest))
+  { ..report, diagnostics, risk_count: diagnostics.length() }
+}
+
+///|
+fn append_diagnostics(
+  target : Array[Diagnostic],
+  extra : Array[Diagnostic],
+) -> Unit {
+  for d in extra {
+    target.push(d)
+  }
+}
+
+///|
 pub fn evaluate_policy(project : ProjectModel, policy : Policy) -> AuditReport {
   let diagnostics : Array[Diagnostic] = []
   if policy.require_readme && project.readme.length() == 0 {
