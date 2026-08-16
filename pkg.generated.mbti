@@ -32,6 +32,8 @@ pub fn format_error(GuardError) -> String
 
 pub fn is_risky_license(String) -> Bool
 
+pub fn is_valid_repository_url(String) -> Bool
+
 pub fn keyword_quality(Array[String], Int) -> Bool
 
 pub fn parse_mod(String) -> Result[ModuleManifest, GuardError]
@@ -158,6 +160,8 @@ pub(all) struct Policy {
   min_description_length : Int
   require_keywords : Bool
   min_keywords : Int
+  require_valid_version : Bool
+  require_valid_repository : Bool
 } derive(Eq)
 
 pub(all) struct Position {
@@ -175,6 +179,7 @@ pub(all) struct PositionedDiagnostic {
 
 pub(all) struct ProjectModel {
   name : String
+  version : String
   license : String
   readme : String
   repository : String

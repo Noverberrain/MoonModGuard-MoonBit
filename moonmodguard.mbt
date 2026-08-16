@@ -37,6 +37,7 @@ pub(all) struct ProjectSnapshot {
 ///|
 pub(all) struct ProjectModel {
   name : String
+  version : String
   license : String
   readme : String
   repository : String
@@ -56,6 +57,8 @@ pub(all) struct Policy {
   min_description_length : Int
   require_keywords : Bool
   min_keywords : Int
+  require_valid_version : Bool
+  require_valid_repository : Bool
 } derive(Eq)
 
 ///|
@@ -148,6 +151,7 @@ pub fn project_from(
   }
   {
     name: manifest.name,
+    version: manifest.version,
     license: manifest.license,
     readme: manifest.readme,
     repository: manifest.repository,
@@ -169,6 +173,8 @@ pub fn default_policy() -> Policy {
     min_description_length: 10,
     require_keywords: true,
     min_keywords: 1,
+    require_valid_version: true,
+    require_valid_repository: true,
   }
 }
 
@@ -184,6 +190,8 @@ pub fn strict_policy() -> Policy {
     min_description_length: 30,
     require_keywords: true,
     min_keywords: 3,
+    require_valid_version: true,
+    require_valid_repository: true,
   }
 }
 
@@ -202,6 +210,8 @@ pub fn permissive_policy() -> Policy {
     min_description_length: 0,
     require_keywords: false,
     min_keywords: 0,
+    require_valid_version: false,
+    require_valid_repository: false,
   }
 }
 
@@ -222,6 +232,16 @@ pub fn evaluate_policy(project : ProjectModel, policy : Policy) -> AuditReport {
   if policy.require_repository && project.repository.length() == 0 {
     diagnostics.push(
       diagnostic("missing-repository", "repository is not declared"),
+    )
+  }
+  if policy.require_valid_repository &&
+    project.repository.length() > 0 &&
+    !is_valid_repository_url(project.repository) {
+    diagnostics.push(
+      diagnostic(
+        "invalid-repository",
+        "repository '\{project.repository}' is not a valid URL",
+      ),
     )
   }
   if policy.require_license && project.license.length() == 0 {
@@ -248,6 +268,14 @@ pub fn evaluate_policy(project : ProjectModel, policy : Policy) -> AuditReport {
       diagnostic(
         "missing-keywords",
         "only \{project.keywords.length()} keywords, min \{policy.min_keywords} required",
+      ),
+    )
+  }
+  if policy.require_valid_version && !validate_version(project.version) {
+    diagnostics.push(
+      diagnostic(
+        "invalid-version",
+        "version '\{project.version}' is not valid semver",
       ),
     )
   }
@@ -932,6 +960,7 @@ pub fn report_from(
   evaluate_policy(
     {
       name,
+      version: "0.1.0",
       license,
       readme,
       repository,
@@ -1073,6 +1102,15 @@ pub fn evaluate_enhanced(
       diagnostic("missing-repository", "repository is not declared"),
     )
   }
+  if project.repository.length() > 0 &&
+    !is_valid_repository_url(project.repository) {
+    diagnostics.push(
+      diagnostic(
+        "invalid-repository",
+        "repository '\{project.repository}' is not a valid URL",
+      ),
+    )
+  }
   if policy.require_license && project.license.length() == 0 {
     diagnostics.push(diagnostic("missing-license", "license is not declared"))
   }
@@ -1090,6 +1128,14 @@ pub fn evaluate_enhanced(
       diagnostic(
         "missing-keywords",
         "only \{project.keywords.length()} keywords, min \{policy.min_keywords} required",
+      ),
+    )
+  }
+  if policy.require_version && !validate_version(project.version) {
+    diagnostics.push(
+      diagnostic(
+        "invalid-version",
+        "version '\{project.version}' is not valid semver",
       ),
     )
   }
@@ -1148,6 +1194,42 @@ pub fn validate_name(name : String) -> Bool {
   let owner = parts[0]
   let pkg = parts[1]
   owner.length() > 0 && pkg.length() > 0
+}
+
+///|
+/// Check that a repository field is a plausible version-control URL.
+/// Accepts `https://`, `http://`, `git://`, `ssh://` and `git@host:path` forms.
+pub fn is_valid_repository_url(repository : String) -> Bool {
+  let r = repository
+  if r.length() == 0 {
+    return false
+  }
+  if starts_with_string(r, "https://") ||
+    starts_with_string(r, "http://") ||
+    starts_with_string(r, "git://") ||
+    starts_with_string(r, "ssh://") {
+    return true
+  }
+  // git@github.com:owner/repo.git form
+  if starts_with_string(r, "git@") && r.contains(":") {
+    return true
+  }
+  false
+}
+
+///|
+fn arrays_equal(a : Array[String], b : Array[String]) -> Bool {
+  if a.length() != b.length() {
+    return false
+  }
+  let mut i = 0
+  while i < a.length() {
+    if a[i] != b[i] {
+      return false
+    }
+    i = i + 1
+  }
+  true
 }
 
 ///|
@@ -1521,6 +1603,20 @@ pub fn check_mooncake_consistency(
       diagnostic(
         "mooncake-repository-mismatch",
         "moon.mod repository '\{mod_manifest.repository}' != mooncake.yaml repository '\{mooncake.repository}'",
+      ),
+    )
+  }
+  if mod_manifest.description != mooncake.description {
+    diagnostics.push(
+      diagnostic(
+        "mooncake-description-mismatch", "moon.mod description != mooncake.yaml description",
+      ),
+    )
+  }
+  if !arrays_equal(mod_manifest.keywords, mooncake.keywords) {
+    diagnostics.push(
+      diagnostic(
+        "mooncake-keywords-mismatch", "moon.mod keywords != mooncake.yaml keywords",
       ),
     )
   }

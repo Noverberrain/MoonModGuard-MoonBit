@@ -63,7 +63,7 @@ test "parse package imports with aliases" {
 test "policy reports missing metadata and license violations" {
   let project = @moonmodguard.project_from(
     mod_ok(
-      "name = \"wyc060514/tool\"\nlicense = \"GPL-3.0\"\ndescription = \"a useful tool for MoonBit\"\nkeywords = [\"audit\", \"moonbit\"]",
+      "name = \"wyc060514/tool\"\nversion = \"0.1.0\"\nlicense = \"GPL-3.0\"\ndescription = \"a useful tool for MoonBit\"\nkeywords = [\"audit\", \"moonbit\"]",
     ),
     [],
   )
@@ -79,7 +79,7 @@ test "policy reports missing metadata and license violations" {
 ///|
 test "policy reports duplicate and unknown dependencies" {
   let module_manifest = mod_ok(
-    "name = \"wyc060514/tool\"\nreadme = \"README.md\"\nrepository = \"https://example.test/repo\"\nlicense = \"Apache-2.0\"\ndescription = \"a useful tool for MoonBit project auditing\"\nkeywords = [\"audit\"]\nimport {\n  \"unknown/dep\" @a,\n  \"unknown/dep\" @b\n}",
+    "name = \"wyc060514/tool\"\nversion = \"0.1.0\"\nreadme = \"README.md\"\nrepository = \"https://example.test/repo\"\nlicense = \"Apache-2.0\"\ndescription = \"a useful tool for MoonBit project auditing\"\nkeywords = [\"audit\"]\nimport {\n  \"unknown/dep\" @a,\n  \"unknown/dep\" @b\n}",
   )
   let project = @moonmodguard.project_from(module_manifest, [])
   let report = @moonmodguard.evaluate_policy(
@@ -94,7 +94,7 @@ test "policy reports duplicate and unknown dependencies" {
 ///|
 test "scan project combines module and package imports" {
   let module_manifest = mod_ok(
-    "name = \"wyc060514/tool\"\nreadme = \"README.md\"\nrepository = \"https://example.test/repo\"\nlicense = \"Apache-2.0\"\ndescription = \"a useful tool for MoonBit project auditing\"\nkeywords = [\"audit\", \"moonbit\"]\nimport { \"moonbitlang/x\" @x }",
+    "name = \"wyc060514/tool\"\nversion = \"0.1.0\"\nreadme = \"README.md\"\nrepository = \"https://example.test/repo\"\nlicense = \"Apache-2.0\"\ndescription = \"a useful tool for MoonBit project auditing\"\nkeywords = [\"audit\", \"moonbit\"]\nimport { \"moonbitlang/x\" @x }",
   )
   let package_manifest = pkg_ok("import { \"wyc060514/core\" @core }")
   let report = @moonmodguard.scan_project(@moonmodguard.ProjectSnapshot::{
@@ -201,6 +201,7 @@ test "report_from builds audit directly" {
 test "strict policy enforces longer description" {
   let project = @moonmodguard.ProjectModel::{
     name: "test/proj",
+    version: "0.1.0",
     license: "MIT",
     readme: "R.md",
     repository: "https://r.test",
@@ -219,6 +220,7 @@ test "strict policy enforces longer description" {
 test "permissive policy allows everything" {
   let project = @moonmodguard.ProjectModel::{
     name: "test/proj",
+    version: "0.1.0",
     license: "Unlicense",
     readme: "",
     repository: "",
@@ -287,6 +289,7 @@ test "TrustPolicy grades dependencies" {
 test "evaluate_enhanced with CSP trust policy" {
   let project = @moonmodguard.ProjectModel::{
     name: "test/proj",
+    version: "0.1.0",
     license: "MIT",
     readme: "R.md",
     repository: "https://r.test",
@@ -338,6 +341,7 @@ test "render_summary produces markdown table" {
   }
   let project = @moonmodguard.ProjectModel::{
     name: "test/proj",
+    version: "0.1.0",
     license: "MIT",
     readme: "R.md",
     repository: "r",
@@ -360,6 +364,7 @@ test "render_summary produces markdown table" {
 test "render_full_report includes summary section" {
   let project = @moonmodguard.ProjectModel::{
     name: "test/proj",
+    version: "0.1.0",
     license: "MIT",
     readme: "R.md",
     repository: "r",
@@ -383,7 +388,7 @@ test "render_full_report includes summary section" {
 test "batch_audit aggregates multiple projects" {
   let snapshot1 = @moonmodguard.ProjectSnapshot::{
     module_manifest: mod_ok(
-      "name = \"a/proj1\"\nlicense = \"MIT\"\nreadme = \"R.md\"\nrepository = \"r\"\ndescription = \"A properly described test project\"\nkeywords = [\"audit\"]\nversion = \"0.1.0\"",
+      "name = \"a/proj1\"\nlicense = \"MIT\"\nreadme = \"R.md\"\nrepository = \"https://r.test\"\ndescription = \"A properly described test project\"\nkeywords = [\"audit\"]\nversion = \"0.1.0\"",
     ),
     packages: [],
   }
@@ -470,6 +475,7 @@ test "check_missing_versioned_dep detects package imports without module dep" {
 test "render_json escapes special characters" {
   let project = @moonmodguard.ProjectModel::{
     name: "test/proj",
+    version: "0.1.0",
     license: "MIT\nwith newline",
     readme: "R.md",
     repository: "r",
@@ -498,6 +504,7 @@ test "render_json escapes special characters" {
 test "render_json escape control characters" {
   let project = @moonmodguard.ProjectModel::{
     name: "t/p",
+    version: "0.1.0",
     license: "L",
     readme: "R",
     repository: "r",
@@ -549,6 +556,7 @@ test "validate_version strict semver" {
 test "render_sarif produces valid structure" {
   let project = @moonmodguard.ProjectModel::{
     name: "test/proj",
+    version: "0.1.0",
     license: "MIT",
     readme: "R.md",
     repository: "r",
@@ -579,6 +587,7 @@ test "render_sarif produces valid structure" {
 test "render_sarif empty diagnostics" {
   let project = @moonmodguard.ProjectModel::{
     name: "test/proj",
+    version: "0.1.0",
     license: "Apache-2.0",
     readme: "R.md",
     repository: "r",
@@ -670,4 +679,87 @@ test "discover_packages finds current project" {
 test "audit_workspace returns summary" {
   let summary = @moonmodguard.audit_workspace(".")
   assert_true(summary.total_projects > 0)
+}
+
+///|
+test "policy flags invalid semver version" {
+  let project = @moonmodguard.project_from(
+    mod_ok(
+      "name = \"wyc060514/tool\"\nversion = \"not-a-version\"\nreadme = \"R.md\"\nrepository = \"https://r.test\"\nlicense = \"MIT\"\ndescription = \"a useful tool for MoonBit\"\nkeywords = [\"audit\"]",
+    ),
+    [],
+  )
+  let report = @moonmodguard.evaluate_policy(
+    project,
+    @moonmodguard.default_policy(),
+  )
+  let mut found = false
+  for d in report.diagnostics {
+    if d.code == "invalid-version" {
+      found = true
+    }
+  }
+  assert_true(found)
+}
+
+///|
+test "policy flags invalid repository URL" {
+  let project = @moonmodguard.project_from(
+    mod_ok(
+      "name = \"wyc060514/tool\"\nversion = \"0.1.0\"\nreadme = \"R.md\"\nrepository = \"not-a-url\"\nlicense = \"MIT\"\ndescription = \"a useful tool for MoonBit\"\nkeywords = [\"audit\"]",
+    ),
+    [],
+  )
+  let report = @moonmodguard.evaluate_policy(
+    project,
+    @moonmodguard.default_policy(),
+  )
+  let mut found = false
+  for d in report.diagnostics {
+    if d.code == "invalid-repository" {
+      found = true
+    }
+  }
+  assert_true(found)
+}
+
+///|
+test "policy accepts valid repository URL forms" {
+  assert_true(@moonmodguard.is_valid_repository_url("https://github.com/a/b"))
+  assert_true(
+    @moonmodguard.is_valid_repository_url("http://gitlink.org.cn/a/b"),
+  )
+  assert_true(@moonmodguard.is_valid_repository_url("git@github.com:a/b.git"))
+  assert_true(@moonmodguard.is_valid_repository_url("ssh://git@host/a/b"))
+  assert_false(@moonmodguard.is_valid_repository_url(""))
+  assert_false(@moonmodguard.is_valid_repository_url("not-a-url"))
+  assert_false(@moonmodguard.is_valid_repository_url("github.com/a/b"))
+}
+
+///|
+test "check_mooncake_consistency flags keyword and description mismatch" {
+  let mod_manifest = mod_ok(
+    "name = \"wyc/tool\"\nversion = \"1.0.0\"\nlicense = \"MIT\"\nrepository = \"https://r.test\"\ndescription = \"mod description\"\nkeywords = [\"audit\", \"tool\"]",
+  )
+  let mooncake = @moonmodguard.MooncakeManifest::{
+    name: "wyc/tool",
+    version: "1.0.0",
+    description: "different description",
+    repository: "https://r.test",
+    license: "MIT",
+    keywords: ["audit"],
+  }
+  let diags = @moonmodguard.check_mooncake_consistency(mod_manifest, mooncake)
+  let mut has_desc = false
+  let mut has_kw = false
+  for d in diags {
+    if d.code == "mooncake-description-mismatch" {
+      has_desc = true
+    }
+    if d.code == "mooncake-keywords-mismatch" {
+      has_kw = true
+    }
+  }
+  assert_true(has_desc)
+  assert_true(has_kw)
 }
