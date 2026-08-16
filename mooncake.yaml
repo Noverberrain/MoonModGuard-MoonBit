@@ -1,5 +1,5 @@
 name: moonmodguard
-version: 0.2.0
+version: 0.3.0
 description: A MoonBit project manifest and supply-chain policy auditor.
 repository: https://github.com/Noverberrain/MoonModGuard-MoonBit
 license: Apache-2.0
